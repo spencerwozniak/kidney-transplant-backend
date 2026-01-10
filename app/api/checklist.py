@@ -2,10 +2,12 @@
 Checklist management endpoints
 """
 from fastapi import APIRouter, HTTPException, Body, UploadFile, File
+from fastapi.responses import FileResponse
 import uuid
 from datetime import datetime
 from pathlib import Path
 import shutil
+import urllib.parse
 
 from app.models.schemas import TransplantChecklist
 from app.core import database
@@ -207,4 +209,56 @@ async def upload_checklist_item_document(
     
     # Return updated checklist
     return checklist_data
+
+
+@router.get("/documents/{file_path:path}")
+async def get_document(file_path: str):
+    """
+    Retrieve a document file
+    
+    Serves documents from the data/documents directory
+    File path should be URL-encoded (e.g., documents/patient_id/item_id/filename.pdf)
+    """
+    # Verify patient exists
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # Decode the file path
+    try:
+        decoded_path = urllib.parse.unquote(file_path)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid file path encoding")
+    
+    # Construct full file path
+    # File path format: documents/{patient_id}/{item_id}/{filename}
+    full_path = Path("data") / decoded_path
+    
+    # Security check: ensure the path is within data/documents
+    if not str(full_path.resolve()).startswith(str(Path("data/documents").resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if file exists
+    if not full_path.exists() or not full_path.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Determine media type based on file extension
+    file_extension = full_path.suffix.lower()
+    media_types = {
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+        '.webp': 'image/webp',
+    }
+    media_type = media_types.get(file_extension, 'application/octet-stream')
+    
+    # Return the file
+    return FileResponse(
+        path=str(full_path),
+        media_type=media_type,
+        filename=full_path.name
+    )
 
