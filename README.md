@@ -19,6 +19,33 @@ Minimal backend for demo with single patient support:
 
 ---
 
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9 or higher
+- pip (Python package manager)
+
+### Installation
+
+1. **Install dependencies**:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Run the development server**:
+
+   ```bash
+   python run.py
+   ```
+
+3. **Access the API**:
+   - API: http://localhost:8000
+   - Interactive API docs: http://localhost:8000/docs
+
+---
+
 ## API Endpoints
 
 ### Patients
@@ -70,15 +97,15 @@ kidney-transplant-backend/
 │   ├── main.py                 # FastAPI app, CORS, router setup
 │   ├── api/
 │   │   ├── __init__.py         # Router aggregation
-│   │   ├── patients.py          # Patient endpoints
+│   │   ├── patients.py         # Patient endpoints
 │   │   ├── questionnaire.py    # Questionnaire endpoints
-│   │   ├── checklist.py         # Checklist endpoints
-│   │   └── status.py            # Patient status endpoints
+│   │   ├── checklist.py        # Checklist endpoints
+│   │   └── status.py           # Patient status endpoints
 │   ├── core/
-│   │   ├── config.py            # CORS origins configuration
-│   │   └── database.py          # JSON file read/write functions
+│   │   ├── config.py           # CORS origins configuration
+│   │   └── database.py         # JSON file read/write functions
 │   ├── models/
-│   │   └── schemas.py           # Pydantic models
+│   │   └── schemas.py          # Pydantic models
 │   └── services/
 │       ├── checklist_initialization.py  # Default checklist creation
 │       ├── status_computation.py        # Status computation from questionnaire
@@ -134,47 +161,6 @@ kidney-transplant-backend/
 
 ---
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.9 or higher
-- pip (Python package manager)
-
-### Installation
-
-1. **Create a virtual environment** (recommended):
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies**:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the development server**:
-
-   ```bash
-   python run.py
-   ```
-
-   Or using uvicorn directly:
-
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-4. **Access the API**:
-   - API: http://localhost:8000
-   - Interactive API docs: http://localhost:8000/docs
-   - Alternative docs: http://localhost:8000/redoc
-
----
-
 ## Development
 
 ### Running Tests
@@ -227,21 +213,6 @@ JSON files in `data/` directory (auto-created, gitignored):
 - No authentication
 - JSON files (not suitable for production concurrency)
 - No document upload/storage (checklist items reference documents but don't store them)
-
-**Architecture:**
-
-- **Service layer** - Business logic separated from routes (`app/services/`)
-- **Modular routes** - Each resource has its own route file (`app/api/`)
-- **Pydantic models** - Type-safe data validation and serialization
-- **Automatic status computation** - Patient status computed from questionnaire on submission
-- **Default checklist** - Automatically created when patient is created
-
-**Adding Features:**
-
-1. Add Pydantic model in `app/models/schemas.py`
-2. Add storage functions in `app/core/database.py`
-3. Add business logic in `app/services/` (if needed)
-4. Add route file in `app/api/` and register in `app/api/__init__.py`
 
 ---
 
