@@ -13,6 +13,7 @@ from datetime import datetime
 from app.models.schemas import Patient, QuestionnaireSubmission, TransplantChecklist, PatientStatus
 from app.core import database
 from app.services.status_computation import compute_patient_status
+from app.services.checklist_initialization import create_default_checklist
 
 router = APIRouter()
 
@@ -22,9 +23,31 @@ async def create_patient(patient: Patient):
     Save patient (intake form)
     
     CURRENT: Single patient, generates UUID, saves directly
+    Automatically creates default checklist for new patient
     """
     patient.id = str(uuid.uuid4())
     database.save_patient(patient.model_dump())
+    
+    # Create default checklist for new patient
+    checklist = create_default_checklist(patient.id)
+    checklist.id = str(uuid.uuid4())
+    
+    # Prepare checklist data for storage
+    checklist_data = checklist.model_dump()
+    # Convert datetime objects to ISO strings for JSON storage
+    if isinstance(checklist_data.get('created_at'), datetime):
+        checklist_data['created_at'] = checklist_data['created_at'].isoformat()
+    if isinstance(checklist_data.get('updated_at'), datetime):
+        checklist_data['updated_at'] = checklist_data['updated_at'].isoformat()
+    
+    # Convert datetime objects in checklist items
+    for item in checklist_data.get('items', []):
+        if isinstance(item.get('completed_at'), datetime):
+            item['completed_at'] = item['completed_at'].isoformat()
+    
+    # Save checklist
+    database.save_checklist(checklist_data)
+    
     return patient
 
 
@@ -118,10 +141,37 @@ async def get_checklist():
     Get checklist for current patient
     
     CURRENT: Returns single checklist (no ID needed)
+    If no checklist exists, creates default one for current patient
     """
     checklist = database.get_checklist()
     if not checklist:
-        raise HTTPException(status_code=404, detail="No checklist found")
+        # Get patient to create checklist for
+        patient = database.get_patient()
+        if not patient:
+            raise HTTPException(status_code=404, detail="No patient found")
+        
+        # Create default checklist
+        new_checklist = create_default_checklist(patient.get('id'))
+        new_checklist.id = str(uuid.uuid4())
+        
+        # Prepare checklist data for storage
+        checklist_data = new_checklist.model_dump()
+        # Convert datetime objects to ISO strings for JSON storage
+        if isinstance(checklist_data.get('created_at'), datetime):
+            checklist_data['created_at'] = checklist_data['created_at'].isoformat()
+        if isinstance(checklist_data.get('updated_at'), datetime):
+            checklist_data['updated_at'] = checklist_data['updated_at'].isoformat()
+        
+        # Convert datetime objects in checklist items
+        for item in checklist_data.get('items', []):
+            if isinstance(item.get('completed_at'), datetime):
+                item['completed_at'] = item['completed_at'].isoformat()
+        
+        # Save checklist
+        database.save_checklist(checklist_data)
+        
+        return new_checklist
+    
     return checklist
 
 
