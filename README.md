@@ -214,21 +214,6 @@ JSON files in `data/` directory (auto-created, gitignored):
 - JSON files (not suitable for production concurrency)
 - No document upload/storage (checklist items reference documents but don't store them)
 
-**Architecture:**
-
-- **Service layer** - Business logic separated from routes (`app/services/`)
-- **Modular routes** - Each resource has its own route file (`app/api/`)
-- **Pydantic models** - Type-safe data validation and serialization
-- **Automatic status computation** - Patient status computed from questionnaire on submission
-- **Default checklist** - Automatically created when patient is created
-
-**Adding Features:**
-
-1. Add Pydantic model in `app/models/schemas.py`
-2. Add storage functions in `app/core/database.py`
-3. Add business logic in `app/services/` (if needed)
-4. Add route file in `app/api/` and register in `app/api/__init__.py`
-
 ---
 
 ## Status
