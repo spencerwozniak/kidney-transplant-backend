@@ -70,15 +70,15 @@ kidney-transplant-backend/
 │   ├── main.py                 # FastAPI app, CORS, router setup
 │   ├── api/
 │   │   ├── __init__.py         # Router aggregation
-│   │   ├── patients.py          # Patient endpoints
+│   │   ├── patients.py         # Patient endpoints
 │   │   ├── questionnaire.py    # Questionnaire endpoints
-│   │   ├── checklist.py         # Checklist endpoints
-│   │   └── status.py            # Patient status endpoints
+│   │   ├── checklist.py        # Checklist endpoints
+│   │   └── status.py           # Patient status endpoints
 │   ├── core/
-│   │   ├── config.py            # CORS origins configuration
-│   │   └── database.py          # JSON file read/write functions
+│   │   ├── config.py           # CORS origins configuration
+│   │   └── database.py         # JSON file read/write functions
 │   ├── models/
-│   │   └── schemas.py           # Pydantic models
+│   │   └── schemas.py          # Pydantic models
 │   └── services/
 │       ├── checklist_initialization.py  # Default checklist creation
 │       ├── status_computation.py        # Status computation from questionnaire
