@@ -6,7 +6,7 @@ Simple data models
 - Optional fields for flexibility
 - Simple Dict types for questionnaire (can be typed later)
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -38,3 +38,31 @@ class QuestionnaireSubmission(BaseModel):
     answers: Dict[str, str]           = Field(..., description="Question answers as key-value pairs (question_id -> 'yes'/'no')")
     results: Optional[Dict[str, Any]] = Field(None, description="Calculated results from questionnaire (e.g., eligibility assessment)")
     submitted_at: Optional[datetime]  = Field(default_factory=datetime.now, description="Timestamp when questionnaire was submitted")
+
+
+class ChecklistItem(BaseModel):
+    """
+    Individual checklist item for pre-transplant evaluation
+    
+    Represents one step in the pre-transplant workup process
+    """
+    id: str                           = Field(..., description="Unique identifier for the checklist item (e.g., 'physical_exam', 'lab_work')")
+    title: str                        = Field(..., description="Display title of the checklist item")
+    description: Optional[str]        = Field(None, description="Detailed description of what this evaluation entails")
+    is_complete: bool                 = Field(default=False, description="Whether this item has been completed")
+    notes: Optional[str]              = Field(None, description="Patient notes about where records are stored or other details")
+    completed_at: Optional[datetime]  = Field(None, description="Timestamp when item was marked complete")
+    order: int                        = Field(..., description="Display order in the checklist (1-based)")
+
+
+class TransplantChecklist(BaseModel):
+    """
+    Pre-transplant checklist for a patient
+    
+    Tracks progress through required evaluations and tests before transplant listing
+    """
+    id: Optional[str]                 = Field(None, description="Unique checklist ID (auto-generated)")
+    patient_id: str                   = Field(..., description="Patient ID this checklist is associated with")
+    items: List[ChecklistItem]        = Field(..., description="List of checklist items")
+    created_at: Optional[datetime]    = Field(default_factory=datetime.now, description="Timestamp when checklist was created")
+    updated_at: Optional[datetime]    = Field(default_factory=datetime.now, description="Timestamp when checklist was last updated")

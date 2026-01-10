@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 import uuid
 from datetime import datetime
 
-from app.models.schemas import Patient, QuestionnaireSubmission
+from app.models.schemas import Patient, QuestionnaireSubmission, TransplantChecklist
 from app.core import database
 
 router = APIRouter()
@@ -82,3 +82,56 @@ async def delete_patient():
     """
     database.delete_patient()
     return {"message": "Patient deleted successfully"}
+
+
+@router.get("/checklist", response_model=TransplantChecklist)
+async def get_checklist():
+    """
+    Get checklist for current patient
+    
+    CURRENT: Returns single checklist (no ID needed)
+    """
+    checklist = database.get_checklist()
+    if not checklist:
+        raise HTTPException(status_code=404, detail="No checklist found")
+    return checklist
+
+
+@router.post("/checklist", response_model=TransplantChecklist)
+async def create_or_update_checklist(checklist: TransplantChecklist):
+    """
+    Create or update checklist
+    
+    CURRENT: Single patient, generates UUID if needed, saves directly
+    """
+    # Verify patient exists
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # Verify patient_id matches current patient (for single patient demo)
+    if checklist.patient_id != patient.get('id'):
+        raise HTTPException(status_code=400, detail="Patient ID does not match current patient")
+    
+    # Generate ID if not provided
+    if not checklist.id:
+        checklist.id = str(uuid.uuid4())
+    
+    # Prepare data for storage
+    data = checklist.model_dump()
+    # Convert datetime objects to ISO strings for JSON storage
+    if isinstance(data.get('created_at'), datetime):
+        data['created_at'] = data['created_at'].isoformat()
+    if isinstance(data.get('updated_at'), datetime):
+        data['updated_at'] = data['updated_at'].isoformat()
+    
+    # Convert datetime objects in checklist items
+    for item in data.get('items', []):
+        if isinstance(item.get('completed_at'), datetime):
+            item['completed_at'] = item['completed_at'].isoformat()
+    
+    # Save to database
+    database.save_checklist(data)
+    
+    # Return the checklist with generated ID
+    return checklist

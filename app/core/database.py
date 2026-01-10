@@ -62,6 +62,23 @@ def save_questionnaire(questionnaire: Dict[str, Any]):
     write_json("data/questionnaire.json", data)
 
 
+def save_checklist(checklist: Dict[str, Any]):
+    """
+    Save checklist (replace existing for demo)
+    CURRENT: Single patient assumption, overwrites existing
+    """
+    write_json("data/checklist.json", [checklist])
+
+
+def get_checklist() -> Optional[Dict[str, Any]]:
+    """
+    Get checklist (demo: only one)
+    CURRENT: Single patient assumption, no ID needed
+    """
+    checklists = read_json("data/checklist.json")
+    return checklists[0] if checklists else None
+
+
 def delete_patient():
     """
     Delete patient (demo: only one)
@@ -74,3 +91,7 @@ def delete_patient():
     questionnaire_path = Path("data/questionnaire.json")
     if questionnaire_path.exists():
         questionnaire_path.unlink()
+    # Also clear checklist data associated with patient
+    checklist_path = Path("data/checklist.json")
+    if checklist_path.exists():
+        checklist_path.unlink()
