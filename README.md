@@ -28,35 +28,21 @@ Minimal backend for demo with single patient support:
 
 ### Installation
 
-1. **Create a virtual environment** (recommended):
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies**:
+1. **Install dependencies**:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Run the development server**:
+2. **Run the development server**:
 
    ```bash
    python run.py
    ```
 
-   Or using uvicorn directly:
-
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-4. **Access the API**:
+3. **Access the API**:
    - API: http://localhost:8000
    - Interactive API docs: http://localhost:8000/docs
-   - Alternative docs: http://localhost:8000/redoc
 
 ---
 
