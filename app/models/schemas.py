@@ -16,11 +16,14 @@ class Patient(BaseModel):
     
     CURRENT: Basic intake form fields
     """
-    id: Optional[str] = None
-    name: str = Field(..., min_length=1, max_length=200)
-    date_of_birth: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    id: Optional[str]       = Field(None, description="Patient unique identifier (auto-generated)")
+    name: str               = Field(...,  description="Patient legal name")
+    date_of_birth: str      = Field(...,  description="Date of birth (format: YYYY-MM-DD)")
+    sex: Optional[str]      = Field(None, description="Sex assigned at birth (e.g., 'male', 'female')")
+    height: Optional[float] = Field(None, description="Height in centimeters (cm)")
+    weight: Optional[float] = Field(None, description="Weight in kilograms (kg)")
+    email: Optional[str]    = Field(None, description="Email address")
+    phone: Optional[str]    = Field(None, description="Phone number")
 
 
 class QuestionnaireSubmission(BaseModel):
@@ -29,7 +32,7 @@ class QuestionnaireSubmission(BaseModel):
     
     CURRENT: Simple dict for answers, optional results dict
     """
-    answers: Dict[str, str]
-    results: Optional[Dict[str, Any]] = None
+    answers: Dict[str, str]           = Field(..., description="Question answers as key-value pairs (question_id -> 'yes'/'no')")
+    results: Optional[Dict[str, Any]] = Field(None, description="Calculated results from questionnaire (e.g., eligibility assessment)")
 
 
