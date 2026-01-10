@@ -53,6 +53,7 @@ class ChecklistItem(BaseModel):
     notes: Optional[str]              = Field(None, description="Patient notes about where records are stored or other details")
     completed_at: Optional[datetime]  = Field(None, description="Timestamp when item was marked complete")
     order: int                        = Field(..., description="Display order in the checklist (1-based)")
+    documents: List[str]              = Field(default_factory=list, description="Array of document path names referencing stored documents")
 
 
 class TransplantChecklist(BaseModel):

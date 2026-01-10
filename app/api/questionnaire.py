@@ -1,0 +1,54 @@
+"""
+Questionnaire submission endpoints
+"""
+from fastapi import APIRouter, HTTPException
+import uuid
+
+from app.models.schemas import QuestionnaireSubmission
+from app.core import database
+from app.services.status_computation import compute_patient_status
+from app.services.utils import convert_datetime_to_iso
+
+router = APIRouter()
+
+
+@router.post("/questionnaire", response_model=QuestionnaireSubmission)
+async def submit_questionnaire(submission: QuestionnaireSubmission):
+    """
+    Save questionnaire
+    
+    CURRENT: Verifies patient exists, adds ID, stores with patient_id and timestamp
+    Also computes and saves patient status from questionnaire results
+    """
+    # Verify patient exists
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # Verify patient_id matches current patient (for single patient demo)
+    if submission.patient_id != patient.get('id'):
+        raise HTTPException(status_code=400, detail="Patient ID does not match current patient")
+    
+    # Generate ID if not provided
+    if not submission.id:
+        submission.id = str(uuid.uuid4())
+    
+    # Prepare data for storage
+    data = convert_datetime_to_iso(submission.model_dump(), ['submitted_at'])
+    
+    # Save to database
+    database.save_questionnaire(data)
+    
+    # Compute patient status from answers (backend computation)
+    status = compute_patient_status(submission.answers, submission.patient_id)
+    status.id = str(uuid.uuid4())
+    
+    # Prepare status data for storage
+    status_data = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
+    
+    # Save patient status
+    database.save_patient_status(status_data)
+    
+    # Return the submission with generated ID
+    return submission
+
