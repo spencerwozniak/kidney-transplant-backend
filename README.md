@@ -1,4 +1,4 @@
-# Kidney Transplant Navigation — Backend API
+# Kidney Transplant Navigation — Backend
 
 (PHP?)-based backend that powers a **patient-controlled transplant navigation system** by evaluating eligibility, detecting missed care events, and recording decisions in a transparent, auditable way.
 
