@@ -31,12 +31,12 @@ class QuestionnaireSubmission(BaseModel):
     """
     Questionnaire submission
     
-    CURRENT: Associated with patient, includes answers and results
+    CURRENT: Associated with patient, includes answers only
+    Results are computed on the backend from answers
     """
     id: Optional[str]                 = Field(None, description="Unique questionnaire submission ID (auto-generated)")
     patient_id: str                   = Field(..., description="Patient ID this questionnaire is associated with")
     answers: Dict[str, str]           = Field(..., description="Question answers as key-value pairs (question_id -> 'yes'/'no')")
-    results: Optional[Dict[str, Any]] = Field(None, description="Calculated results from questionnaire (e.g., eligibility assessment)")
     submitted_at: Optional[datetime]  = Field(default_factory=datetime.now, description="Timestamp when questionnaire was submitted")
 
 
@@ -66,3 +66,26 @@ class TransplantChecklist(BaseModel):
     items: List[ChecklistItem]        = Field(..., description="List of checklist items")
     created_at: Optional[datetime]    = Field(default_factory=datetime.now, description="Timestamp when checklist was created")
     updated_at: Optional[datetime]    = Field(default_factory=datetime.now, description="Timestamp when checklist was last updated")
+
+
+class Contraindication(BaseModel):
+    """
+    Individual contraindication identified in questionnaire
+    """
+    id: str                           = Field(..., description="Question ID that identified this contraindication")
+    question: str                     = Field(..., description="Question text describing the contraindication")
+
+
+class PatientStatus(BaseModel):
+    """
+    Patient transplant status based on questionnaire results
+    
+    CURRENT: Single status per patient, computed from latest questionnaire submission
+    """
+    id: Optional[str]                         = Field(None, description="Unique status ID (auto-generated)")
+    patient_id: str                           = Field(..., description="Patient ID this status is associated with")
+    has_absolute: bool                        = Field(..., description="Whether patient has absolute contraindications")
+    has_relative: bool                        = Field(..., description="Whether patient has relative contraindications")
+    absolute_contraindications: List[Contraindication] = Field(default_factory=list, description="List of absolute contraindications")
+    relative_contraindications: List[Contraindication] = Field(default_factory=list, description="List of relative contraindications")
+    updated_at: Optional[datetime]            = Field(default_factory=datetime.now, description="Timestamp when status was last updated")

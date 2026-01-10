@@ -10,8 +10,9 @@ from fastapi import APIRouter, HTTPException
 import uuid
 from datetime import datetime
 
-from app.models.schemas import Patient, QuestionnaireSubmission, TransplantChecklist
+from app.models.schemas import Patient, QuestionnaireSubmission, TransplantChecklist, PatientStatus
 from app.core import database
+from app.services.status_computation import compute_patient_status
 
 router = APIRouter()
 
@@ -46,6 +47,7 @@ async def submit_questionnaire(submission: QuestionnaireSubmission):
     Save questionnaire
     
     CURRENT: Verifies patient exists, adds ID, stores with patient_id and timestamp
+    Also computes and saves patient status from questionnaire results
     """
     # Verify patient exists
     patient = database.get_patient()
@@ -69,8 +71,34 @@ async def submit_questionnaire(submission: QuestionnaireSubmission):
     # Save to database
     database.save_questionnaire(data)
     
+    # Compute patient status from answers (backend computation)
+    status = compute_patient_status(submission.answers, submission.patient_id)
+    status.id = str(uuid.uuid4())
+    
+    # Prepare status data for storage
+    status_data = status.model_dump()
+    # Convert datetime to ISO string for JSON storage
+    if isinstance(status_data.get('updated_at'), datetime):
+        status_data['updated_at'] = status_data['updated_at'].isoformat()
+    
+    # Save patient status
+    database.save_patient_status(status_data)
+    
     # Return the submission with generated ID
     return submission
+
+
+@router.get("/patient-status", response_model=PatientStatus)
+async def get_patient_status():
+    """
+    Get patient status
+    
+    CURRENT: Returns single patient status (no ID needed)
+    """
+    status = database.get_patient_status()
+    if not status:
+        raise HTTPException(status_code=404, detail="No patient status found")
+    return status
 
 
 @router.delete("/patients")
@@ -78,7 +106,7 @@ async def delete_patient():
     """
     Delete patient and associated data
     
-    CURRENT: Single patient assumption, deletes patient and questionnaire data
+    CURRENT: Single patient assumption, deletes patient, questionnaire, checklist, and status data
     """
     database.delete_patient()
     return {"message": "Patient deleted successfully"}

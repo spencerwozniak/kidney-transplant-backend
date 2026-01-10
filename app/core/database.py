@@ -79,6 +79,23 @@ def get_checklist() -> Optional[Dict[str, Any]]:
     return checklists[0] if checklists else None
 
 
+def save_patient_status(status: Dict[str, Any]):
+    """
+    Save patient status (replace existing for demo)
+    CURRENT: Single patient assumption, overwrites existing
+    """
+    write_json("data/patient_status.json", [status])
+
+
+def get_patient_status() -> Optional[Dict[str, Any]]:
+    """
+    Get patient status (demo: only one)
+    CURRENT: Single patient assumption, no ID needed
+    """
+    statuses = read_json("data/patient_status.json")
+    return statuses[0] if statuses else None
+
+
 def delete_patient():
     """
     Delete patient (demo: only one)
@@ -95,3 +112,7 @@ def delete_patient():
     checklist_path = Path("data/checklist.json")
     if checklist_path.exists():
         checklist_path.unlink()
+    # Also clear patient status data
+    status_path = Path("data/patient_status.json")
+    if status_path.exists():
+        status_path.unlink()
