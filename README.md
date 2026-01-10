@@ -12,7 +12,9 @@ Python FastAPI-based backend for a patient-controlled transplant navigation syst
 Minimal backend for demo with single patient support:
 
 - **Patient intake form** - Store basic patient information
-- **Eligibility questionnaire** - Store questionnaire answers and results
+- **Eligibility questionnaire** - Store questionnaire answers and compute patient status
+- **Pre-transplant checklist** - Track required evaluations and tests
+- **Patient status computation** - Automatically compute contraindications from questionnaire
 - **JSON file storage** - Simple file-based database (no SQL setup required)
 
 ---
@@ -23,11 +25,28 @@ Minimal backend for demo with single patient support:
 
 - `POST /api/v1/patients` - Create/update patient (intake form)
   - Single patient demo: replaces existing if present
+  - Automatically creates default checklist for new patient
 - `GET /api/v1/patients` - Get current patient
+- `DELETE /api/v1/patients` - Delete patient and all associated data
 
 ### Questionnaire
 
-- `POST /api/v1/questionnaire` - Submit questionnaire answers and results
+- `POST /api/v1/questionnaire` - Submit questionnaire answers
+  - Verifies patient exists
+  - Automatically computes and saves patient status from answers
+
+### Checklist
+
+- `GET /api/v1/checklist` - Get checklist for current patient
+  - Creates default checklist if none exists
+- `POST /api/v1/checklist` - Create or update checklist
+- `PATCH /api/v1/checklist/items/{item_id}` - Update specific checklist item
+  - Update `is_complete`, `completed_at`, and/or `notes`
+
+### Patient Status
+
+- `GET /api/v1/patient-status` - Get computed patient status
+  - Returns absolute and relative contraindications based on questionnaire
 
 ---
 
@@ -50,15 +69,26 @@ kidney-transplant-backend/
 ├── app/
 │   ├── main.py                 # FastAPI app, CORS, router setup
 │   ├── api/
-│   │   └── routes.py           # 3 endpoints: POST/GET patients, POST questionnaire
+│   │   ├── __init__.py         # Router aggregation
+│   │   ├── patients.py          # Patient endpoints
+│   │   ├── questionnaire.py    # Questionnaire endpoints
+│   │   ├── checklist.py         # Checklist endpoints
+│   │   └── status.py            # Patient status endpoints
 │   ├── core/
-│   │   ├── config.py           # CORS origins configuration
+│   │   ├── config.py            # CORS origins configuration
 │   │   └── database.py          # JSON file read/write functions
-│   └── models/
-│       └── schemas.py          # Patient, QuestionnaireSubmission models
+│   ├── models/
+│   │   └── schemas.py           # Pydantic models
+│   └── services/
+│       ├── checklist_initialization.py  # Default checklist creation
+│       ├── status_computation.py        # Status computation from questionnaire
+│       └── utils.py                     # Utility functions
 ├── data/                       # Auto-created JSON files (gitignored)
-│   ├── patient.json          # Single patient data
-│   └── questionnaire.json     # Questionnaire submissions
+│   ├── patient.json            # Single patient data
+│   ├── questionnaire.json      # Questionnaire submissions
+│   ├── checklist.json          # Pre-transplant checklist
+│   └── patient_status.json     # Computed patient status
+├── tests/                      # Test suite
 ├── requirements.txt
 ├── run.py                      # Dev server: uvicorn app.main:app --reload
 └── README.md
@@ -69,26 +99,38 @@ kidney-transplant-backend/
 **`app/main.py`** - FastAPI application setup
 
 - CORS middleware for mobile app
-- Single router mounted at `/api/v1`
+- Router aggregation mounted at `/api/v1`
 - Basic health check endpoint
 
-**`app/api/routes.py`** - API endpoints
+**`app/api/`** - API endpoints (modular routes)
 
-- `POST /patients` - Save patient (generates UUID, overwrites existing)
-- `GET /patients` - Get single patient (no ID needed)
-- `POST /questionnaire` - Save questionnaire (verifies patient exists first)
+- `patients.py` - Patient CRUD operations
+- `questionnaire.py` - Questionnaire submission and status computation
+- `checklist.py` - Checklist management and item updates
+- `status.py` - Patient status retrieval
 
 **`app/core/database.py`** - Data storage
 
 - `read_json()` / `write_json()` - File I/O helpers
-- `save_patient()` - Overwrites `data/patient.json` (single patient)
-- `get_patient()` - Returns first patient from file
-- `save_questionnaire()` - Appends to `data/questionnaire.json`
+- `save_patient()` / `get_patient()` / `delete_patient()` - Patient operations
+- `save_questionnaire()` - Appends questionnaire submissions
+- `save_checklist()` / `get_checklist()` - Checklist operations
+- `save_patient_status()` / `get_patient_status()` - Status operations
 
 **`app/models/schemas.py`** - Pydantic models
 
-- `Patient` - id, name, date_of_birth, email, phone
-- `QuestionnaireSubmission` - answers (dict), results (optional dict)
+- `Patient` - id, name, date_of_birth, sex, height, weight, email, phone
+- `QuestionnaireSubmission` - id, patient_id, answers, submitted_at
+- `TransplantChecklist` - id, patient_id, items, created_at, updated_at
+- `ChecklistItem` - id, title, description, is_complete, notes, completed_at, order, documents
+- `PatientStatus` - id, patient_id, has_absolute, has_relative, contraindications, updated_at
+- `Contraindication` - id, question
+
+**`app/services/`** - Business logic
+
+- `checklist_initialization.py` - Creates default pre-transplant checklist
+- `status_computation.py` - Computes patient status from questionnaire answers
+- `utils.py` - Helper functions for data conversion
 
 ---
 
@@ -165,12 +207,15 @@ JSON files in `data/` directory (auto-created, gitignored):
 
 - `patient.json` - Single patient (array with one object, overwritten on save)
 - `questionnaire.json` - Array of questionnaire submissions (appended)
+- `checklist.json` - Single checklist (array with one object, overwritten on save)
+- `patient_status.json` - Single patient status (array with one object, overwritten on save)
 
 **Storage Functions:**
 
-- `save_patient()` - Writes single patient, overwrites file
-- `get_patient()` - Reads first patient from file
+- `save_patient()` / `get_patient()` / `delete_patient()` - Patient operations
 - `save_questionnaire()` - Appends to questionnaire array
+- `save_checklist()` / `get_checklist()` - Checklist operations
+- `save_patient_status()` / `get_patient_status()` - Status operations
 
 **Note:** Single patient assumption simplifies code (no patient_id lookups). Easy to migrate to SQL later by replacing these functions.
 
@@ -180,14 +225,23 @@ JSON files in `data/` directory (auto-created, gitignored):
 
 - Single patient only (no multi-patient support)
 - No authentication
-- No service layer (routes call database directly)
 - JSON files (not suitable for production concurrency)
+- No document upload/storage (checklist items reference documents but don't store them)
+
+**Architecture:**
+
+- **Service layer** - Business logic separated from routes (`app/services/`)
+- **Modular routes** - Each resource has its own route file (`app/api/`)
+- **Pydantic models** - Type-safe data validation and serialization
+- **Automatic status computation** - Patient status computed from questionnaire on submission
+- **Default checklist** - Automatically created when patient is created
 
 **Adding Features:**
 
 1. Add Pydantic model in `app/models/schemas.py`
-2. Add storage function in `app/core/database.py`
-3. Add route in `app/api/routes.py`
+2. Add storage functions in `app/core/database.py`
+3. Add business logic in `app/services/` (if needed)
+4. Add route file in `app/api/` and register in `app/api/__init__.py`
 
 ---
 
