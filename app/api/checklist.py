@@ -1,9 +1,11 @@
 """
 Checklist management endpoints
 """
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File
 import uuid
 from datetime import datetime
+from pathlib import Path
+import shutil
 
 from app.models.schemas import TransplantChecklist
 from app.core import database
@@ -108,10 +110,94 @@ async def update_checklist_item(
                 item['completed_at'] = update_data['completed_at']
             if 'notes' in update_data:
                 item['notes'] = update_data['notes'] if update_data['notes'] else None
+            if 'documents' in update_data:
+                item['documents'] = update_data['documents']
             break
     
     if not item_found:
         raise HTTPException(status_code=404, detail="Checklist item not found")
+    
+    # Update checklist updated_at timestamp
+    checklist_data['updated_at'] = datetime.now().isoformat()
+    
+    # Save updated checklist
+    database.save_checklist(checklist_data)
+    
+    # Return updated checklist
+    return checklist_data
+
+
+@router.post("/checklist/items/{item_id}/documents", response_model=TransplantChecklist)
+async def upload_checklist_item_document(
+    item_id: str,
+    file: UploadFile = File(...),
+):
+    """
+    Upload a document for a checklist item
+    
+    Accepts PDF or image files, saves to data/documents directory,
+    and appends the file path to the checklist item's documents array
+    """
+    # Verify patient exists
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # Get current checklist
+    checklist_data = database.get_checklist()
+    if not checklist_data:
+        raise HTTPException(status_code=404, detail="No checklist found")
+    
+    # Find the item
+    item_found = False
+    item = None
+    for checklist_item in checklist_data.get('items', []):
+        if checklist_item.get('id') == item_id:
+            item_found = True
+            item = checklist_item
+            break
+    
+    if not item_found:
+        raise HTTPException(status_code=404, detail="Checklist item not found")
+    
+    # Validate file type
+    allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    file_extension = Path(file.filename).suffix.lower() if file.filename else ''
+    
+    if file_extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: PDF, JPG, JPEG, PNG, GIF, BMP, WEBP"
+        )
+    
+    # Create documents directory structure: data/documents/{patient_id}/{item_id}/
+    patient_id = patient.get('id')
+    documents_base = Path("data/documents")
+    patient_dir = documents_base / patient_id
+    item_dir = patient_dir / item_id
+    item_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename to avoid conflicts
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{file.filename}"
+    file_path = item_dir / safe_filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Create relative path for storage (relative to data/documents)
+    relative_path = f"documents/{patient_id}/{item_id}/{safe_filename}"
+    
+    # Initialize documents array if it doesn't exist
+    if 'documents' not in item:
+        item['documents'] = []
+    
+    # Append the new document path
+    item['documents'].append(relative_path)
     
     # Update checklist updated_at timestamp
     checklist_data['updated_at'] = datetime.now().isoformat()
