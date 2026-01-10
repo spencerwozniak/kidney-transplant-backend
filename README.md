@@ -19,6 +19,47 @@ Minimal backend for demo with single patient support:
 
 ---
 
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9 or higher
+- pip (Python package manager)
+
+### Installation
+
+1. **Create a virtual environment** (recommended):
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. **Install dependencies**:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the development server**:
+
+   ```bash
+   python run.py
+   ```
+
+   Or using uvicorn directly:
+
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+4. **Access the API**:
+   - API: http://localhost:8000
+   - Interactive API docs: http://localhost:8000/docs
+   - Alternative docs: http://localhost:8000/redoc
+
+---
+
 ## API Endpoints
 
 ### Patients
@@ -131,47 +172,6 @@ kidney-transplant-backend/
 - `checklist_initialization.py` - Creates default pre-transplant checklist
 - `status_computation.py` - Computes patient status from questionnaire answers
 - `utils.py` - Helper functions for data conversion
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.9 or higher
-- pip (Python package manager)
-
-### Installation
-
-1. **Create a virtual environment** (recommended):
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies**:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the development server**:
-
-   ```bash
-   python run.py
-   ```
-
-   Or using uvicorn directly:
-
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-4. **Access the API**:
-   - API: http://localhost:8000
-   - Interactive API docs: http://localhost:8000/docs
-   - Alternative docs: http://localhost:8000/redoc
 
 ---
 
