@@ -6,6 +6,7 @@ Simple JSON file storage
 - Easy to migrate to SQL/NoSQL later by replacing these functions
 """
 import json
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -96,23 +97,59 @@ def get_patient_status() -> Optional[Dict[str, Any]]:
     return statuses[0] if statuses else None
 
 
+def save_financial_profile(profile: Dict[str, Any]):
+    """
+    Save financial profile (replace existing for demo)
+    CURRENT: Single patient assumption, overwrites existing
+    """
+    write_json("data/financial_profile.json", [profile])
+
+
+def get_financial_profile() -> Optional[Dict[str, Any]]:
+    """
+    Get financial profile (demo: only one)
+    CURRENT: Single patient assumption, no ID needed
+    """
+    profiles = read_json("data/financial_profile.json")
+    return profiles[0] if profiles else None
+
+
 def delete_patient():
     """
-    Delete patient (demo: only one)
-    CURRENT: Single patient assumption, deletes patient.json file
+    Delete patient and all associated records (demo: only one)
+    CURRENT: Single patient assumption, deletes patient.json file and all associated data
     """
+    # Get patient ID before deleting patient data
+    patient = get_patient()
+    patient_id = patient.get('id') if patient else None
+    
+    # Delete patient data file
     path = Path("data/patient.json")
     if path.exists():
         path.unlink()
-    # Also clear questionnaire data associated with patient
+    
+    # Delete questionnaire data associated with patient
     questionnaire_path = Path("data/questionnaire.json")
     if questionnaire_path.exists():
         questionnaire_path.unlink()
-    # Also clear checklist data associated with patient
+    
+    # Delete checklist data associated with patient
     checklist_path = Path("data/checklist.json")
     if checklist_path.exists():
         checklist_path.unlink()
-    # Also clear patient status data
+    
+    # Delete patient status data
     status_path = Path("data/patient_status.json")
     if status_path.exists():
         status_path.unlink()
+    
+    # Delete financial profile data
+    financial_profile_path = Path("data/financial_profile.json")
+    if financial_profile_path.exists():
+        financial_profile_path.unlink()
+    
+    # Delete patient's document directory and all its contents
+    if patient_id:
+        documents_dir = Path("data/documents") / patient_id
+        if documents_dir.exists() and documents_dir.is_dir():
+            shutil.rmtree(documents_dir)

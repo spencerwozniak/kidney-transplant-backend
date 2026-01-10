@@ -90,3 +90,16 @@ class PatientStatus(BaseModel):
     absolute_contraindications: List[Contraindication] = Field(default_factory=list, description="List of absolute contraindications")
     relative_contraindications: List[Contraindication] = Field(default_factory=list, description="List of relative contraindications")
     updated_at: Optional[datetime]            = Field(default_factory=datetime.now, description="Timestamp when status was last updated")
+
+
+class FinancialProfile(BaseModel):
+    """
+    Financial assessment profile for a patient
+    
+    Stores answers from the financial assessment questionnaire
+    """
+    id: Optional[str]                 = Field(None, description="Unique financial profile ID (auto-generated)")
+    patient_id: str                   = Field(..., description="Patient ID this financial profile is associated with")
+    answers: Dict[str, Optional[str]] = Field(..., description="Financial assessment answers as key-value pairs (question_id -> answer or null)")
+    submitted_at: Optional[datetime]  = Field(default_factory=datetime.now, description="Timestamp when financial profile was submitted")
+    updated_at: Optional[datetime]     = Field(default_factory=datetime.now, description="Timestamp when financial profile was last updated")
