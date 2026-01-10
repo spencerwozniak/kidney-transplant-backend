@@ -7,6 +7,7 @@ Simple data models
 - Simple Dict types for questionnaire (can be typed later)
 """
 from typing import Optional, Dict, Any
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -30,9 +31,10 @@ class QuestionnaireSubmission(BaseModel):
     """
     Questionnaire submission
     
-    CURRENT: Simple dict for answers, optional results dict
+    CURRENT: Associated with patient, includes answers and results
     """
+    id: Optional[str]                 = Field(None, description="Unique questionnaire submission ID (auto-generated)")
+    patient_id: str                   = Field(..., description="Patient ID this questionnaire is associated with")
     answers: Dict[str, str]           = Field(..., description="Question answers as key-value pairs (question_id -> 'yes'/'no')")
     results: Optional[Dict[str, Any]] = Field(None, description="Calculated results from questionnaire (e.g., eligibility assessment)")
-
-
+    submitted_at: Optional[datetime]  = Field(default_factory=datetime.now, description="Timestamp when questionnaire was submitted")

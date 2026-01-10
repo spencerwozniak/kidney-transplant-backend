@@ -136,6 +136,7 @@ def test_get_patient(client, temp_data_dir):
 def test_submit_questionnaire_no_patient(client, temp_data_dir):
     """Test submitting questionnaire when no patient exists"""
     questionnaire_data = {
+        "patient_id": "test-id",
         "answers": {"q1": "yes", "q2": "no"},
         "results": {"eligible": False}
     }
@@ -153,10 +154,12 @@ def test_submit_questionnaire(client, temp_data_dir):
         "date_of_birth": "1990-01-01",
         "email": "test@example.com"
     }
-    client.post("/api/v1/patients", json=patient_data)
+    patient_response = client.post("/api/v1/patients", json=patient_data)
+    patient_id = patient_response.json()["id"]
     
     # Submit questionnaire
     questionnaire_data = {
+        "patient_id": patient_id,
         "answers": {
             "metastatic_cancer": "no",
             "decompensated_cirrhosis": "no",
@@ -173,10 +176,11 @@ def test_submit_questionnaire(client, temp_data_dir):
     # Verify response
     assert response.status_code == 200
     data = response.json()
+    assert data["patient_id"] == patient_id
     assert data["answers"] == questionnaire_data["answers"]
     assert data["results"] == questionnaire_data["results"]
     assert data["id"] is not None
-    assert "created_at" in data
+    assert "submitted_at" in data
     
     # Verify database file was created
     questionnaire_file = Path(temp_data_dir) / "questionnaire.json"
@@ -186,6 +190,7 @@ def test_submit_questionnaire(client, temp_data_dir):
     with open(questionnaire_file, 'r') as f:
         saved_data = json.load(f)
         assert len(saved_data) == 1
+        assert saved_data[0]["patient_id"] == patient_id
         assert saved_data[0]["answers"] == questionnaire_data["answers"]
         assert saved_data[0]["id"] == data["id"]
 
@@ -193,13 +198,15 @@ def test_submit_questionnaire(client, temp_data_dir):
 def test_submit_multiple_questionnaires(client, temp_data_dir):
     """Test that multiple questionnaires are appended, not overwritten"""
     # Create patient
-    client.post("/api/v1/patients", json={
+    patient_response = client.post("/api/v1/patients", json={
         "name": "Test",
         "date_of_birth": "1990-01-01"
     })
+    patient_id = patient_response.json()["id"]
     
     # Submit first questionnaire
     response1 = client.post("/api/v1/questionnaire", json={
+        "patient_id": patient_id,
         "answers": {"q1": "yes"},
         "results": {}
     })
@@ -207,6 +214,7 @@ def test_submit_multiple_questionnaires(client, temp_data_dir):
     
     # Submit second questionnaire
     response2 = client.post("/api/v1/questionnaire", json={
+        "patient_id": patient_id,
         "answers": {"q1": "no"},
         "results": {}
     })
@@ -219,6 +227,8 @@ def test_submit_multiple_questionnaires(client, temp_data_dir):
         assert len(saved_data) == 2
         assert saved_data[0]["id"] == id1
         assert saved_data[1]["id"] == id2
+        assert saved_data[0]["patient_id"] == patient_id
+        assert saved_data[1]["patient_id"] == patient_id
 
 
 def test_patient_validation(client):
@@ -229,4 +239,24 @@ def test_patient_validation(client):
         # Missing name
     })
     assert response.status_code == 422  # Validation error
+
+
+def test_questionnaire_wrong_patient_id(client, temp_data_dir):
+    """Test that questionnaire with wrong patient_id is rejected"""
+    # Create patient
+    patient_response = client.post("/api/v1/patients", json={
+        "name": "Test Patient",
+        "date_of_birth": "1990-01-01"
+    })
+    correct_patient_id = patient_response.json()["id"]
+    
+    # Try to submit questionnaire with wrong patient_id
+    response = client.post("/api/v1/questionnaire", json={
+        "patient_id": "wrong-id-123",
+        "answers": {"q1": "yes"},
+        "results": {}
+    })
+    
+    assert response.status_code == 400
+    assert "Patient ID does not match" in response.json()["detail"]
 
