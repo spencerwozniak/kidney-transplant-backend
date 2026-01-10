@@ -60,3 +60,17 @@ def save_questionnaire(questionnaire: Dict[str, Any]):
     data = read_json("data/questionnaire.json")
     data.append(questionnaire)
     write_json("data/questionnaire.json", data)
+
+
+def delete_patient():
+    """
+    Delete patient (demo: only one)
+    CURRENT: Single patient assumption, deletes patient.json file
+    """
+    path = Path("data/patient.json")
+    if path.exists():
+        path.unlink()
+    # Also clear questionnaire data associated with patient
+    questionnaire_path = Path("data/questionnaire.json")
+    if questionnaire_path.exists():
+        questionnaire_path.unlink()

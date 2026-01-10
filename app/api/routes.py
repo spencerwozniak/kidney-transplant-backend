@@ -71,3 +71,14 @@ async def submit_questionnaire(submission: QuestionnaireSubmission):
     
     # Return the submission with generated ID
     return submission
+
+
+@router.delete("/patients")
+async def delete_patient():
+    """
+    Delete patient and associated data
+    
+    CURRENT: Single patient assumption, deletes patient and questionnaire data
+    """
+    database.delete_patient()
+    return {"message": "Patient deleted successfully"}
