@@ -60,7 +60,9 @@ Minimal backend for demo with single patient support:
 
 - `POST /api/v1/questionnaire` - Submit questionnaire answers
   - Verifies patient exists
-  - Automatically computes and saves patient status from answers
+  - Automatically computes and saves patient status from all questionnaires
+  - Supports multiple questionnaire submissions (latest answer wins per question)
+- `GET /api/v1/questionnaire` - Get most recent questionnaire for current patient
 
 ### Checklist
 
@@ -69,11 +71,16 @@ Minimal backend for demo with single patient support:
 - `POST /api/v1/checklist` - Create or update checklist
 - `PATCH /api/v1/checklist/items/{item_id}` - Update specific checklist item
   - Update `is_complete`, `completed_at`, and/or `notes`
+  - Automatically recomputes pathway stage when checklist changes
+- `POST /api/v1/checklist/items/{item_id}/documents` - Upload document for checklist item
+- `GET /api/v1/documents/{file_path}` - Retrieve uploaded document
 
 ### Patient Status
 
 - `GET /api/v1/patient-status` - Get computed patient status
-  - Returns absolute and relative contraindications based on questionnaire
+  - Returns absolute and relative contraindications based on all questionnaires
+  - Uses latest answer per question (latest submission wins)
+  - Returns current pathway stage based on patient data and checklist completion
 
 ---
 
@@ -150,13 +157,15 @@ kidney-transplant-backend/
 - `QuestionnaireSubmission` - id, patient_id, answers, submitted_at
 - `TransplantChecklist` - id, patient_id, items, created_at, updated_at
 - `ChecklistItem` - id, title, description, is_complete, notes, completed_at, order, documents
-- `PatientStatus` - id, patient_id, has_absolute, has_relative, contraindications, updated_at
+- `PatientStatus` - id, patient_id, has_absolute, has_relative, absolute_contraindications, relative_contraindications, pathway_stage, updated_at
 - `Contraindication` - id, question
 
 **`app/services/`** - Business logic
 
 - `checklist_initialization.py` - Creates default pre-transplant checklist
 - `status_computation.py` - Computes patient status from questionnaire answers
+  - Rolls up all questionnaires for a patient (latest answer wins)
+  - Determines pathway stage based on questionnaire, referral status, and checklist completion
 - `utils.py` - Helper functions for data conversion
 
 ---
@@ -183,23 +192,68 @@ Tests verify:
 - Database files are created in the correct location (`data/` directory)
 - Patient creation and retrieval
 - Questionnaire submission and storage
+- Patient status rollup across multiple questionnaires (latest answer wins)
+- Pathway stage determination (has_referral logic)
 - Error handling (404s, validation errors)
 
 **Note:** Tests use temporary directories to avoid affecting actual data files.
+
+## Business Logic
+
+### Patient Status Computation
+
+Patient status is computed by rolling up all questionnaires for a patient:
+
+- **Latest Answer Wins**: For each question, the most recent answer (by `submitted_at`) is used
+  - If a patient answers "yes" to a question, then later answers "no", the "no" takes precedence
+  - Questionnaires without `submitted_at` are treated as oldest (sorted last)
+- **Contraindications**: Only "yes" answers from the latest submissions create contraindications
+  - Absolute contraindications: Questions with `category="absolute"` in `data/questions.json`
+  - Relative contraindications: Questions with `category="relative"` in `data/questions.json`
+- **Deduplication**: Each question_id appears at most once in contraindication lists
+
+### Pathway Stage Determination
+
+Pathway stages progress based on patient data:
+
+1. **identification** - Patient exists but:
+   - No questionnaire completed, OR
+   - `has_ckd_esrd` is explicitly `False`
+
+2. **referral** - Questionnaire completed but:
+   - `has_referral` is not explicitly `True` (None or False), OR
+   - No checklist exists, OR
+   - Checklist exists but has no items
+
+3. **evaluation** - Checklist exists, has items, and:
+   - `has_referral` is explicitly `True`
+   - Less than 80% of checklist items are complete
+
+4. **selection** - Checklist exists, has items, and:
+   - `has_referral` is explicitly `True`
+   - 80% or more of checklist items are complete
+
+**Note:** Pathway stage is automatically recomputed when:
+- A questionnaire is submitted
+- A checklist item is updated
+- A document is uploaded
 
 ## Data Storage
 
 JSON files in `data/` directory (auto-created, gitignored):
 
 - `patient.json` - Single patient (array with one object, overwritten on save)
-- `questionnaire.json` - Array of questionnaire submissions (appended)
+- `questionnaire.json` - Array of questionnaire submissions (appended, all submissions retained)
 - `checklist.json` - Single checklist (array with one object, overwritten on save)
 - `patient_status.json` - Single patient status (array with one object, overwritten on save)
+- `questions.json` - Question definitions (tracked in git, contains question categories and text)
+- `data/documents/{patient_id}/{item_id}/` - Uploaded documents for checklist items
 
 **Storage Functions:**
 
 - `save_patient()` / `get_patient()` / `delete_patient()` - Patient operations
-- `save_questionnaire()` - Appends to questionnaire array
+- `save_questionnaire()` - Appends to questionnaire array (all submissions retained)
+- `get_all_questionnaires_for_patient()` - Gets all questionnaires for a patient
 - `save_checklist()` / `get_checklist()` - Checklist operations
 - `save_patient_status()` / `get_patient_status()` - Status operations
 
@@ -212,7 +266,13 @@ JSON files in `data/` directory (auto-created, gitignored):
 - Single patient only (no multi-patient support)
 - No authentication
 - JSON files (not suitable for production concurrency)
-- No document upload/storage (checklist items reference documents but don't store them)
+- Document storage is file-based (documents stored in `data/documents/` directory)
+
+**Demo-Safe Features:**
+
+- Missing `data/questions.json` returns empty contraindications (no 500 errors)
+- Handles missing submitted_at timestamps gracefully
+- Robust error handling for missing data files
 
 ---
 
