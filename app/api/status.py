@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import PatientStatus
 from app.core import database
-from app.services.status_computation import recompute_pathway_stage
+from app.services.status_computation import compute_patient_status_from_all_questionnaires
 from app.services.utils import convert_datetime_to_iso
 
 router = APIRouter()
@@ -16,22 +16,30 @@ async def get_patient_status():
     """
     Get patient status
     
-    CURRENT: Returns single patient status (no ID needed)
-    Recomputes pathway stage based on current checklist state
+    CURRENT: Computes status by rolling up all questionnaires for the current patient
     """
-    status_data = database.get_patient_status()
-    if not status_data:
-        raise HTTPException(status_code=404, detail="No patient status found")
+    # Get current patient
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
     
-    # Convert dict to PatientStatus model
-    status = PatientStatus(**status_data)
+    patient_id = patient.get('id')
     
-    # Recompute pathway stage (checklist may have changed)
-    status = recompute_pathway_stage(status)
+    # Compute status from all questionnaires
+    try:
+        status = compute_patient_status_from_all_questionnaires(patient_id)
+    except ValueError as e:
+        # No questionnaires found
+        raise HTTPException(status_code=404, detail=str(e))
     
-    # Save updated status with new pathway stage
-    status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
-    database.save_patient_status(status_data_updated)
+    # Generate ID if not set
+    import uuid
+    if not status.id:
+        status.id = str(uuid.uuid4())
+    
+    # Save computed status
+    status_data = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
+    database.save_patient_status(status_data)
     
     return status
 

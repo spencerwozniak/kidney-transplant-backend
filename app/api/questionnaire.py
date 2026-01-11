@@ -6,7 +6,7 @@ import uuid
 
 from app.models.schemas import QuestionnaireSubmission
 from app.core import database
-from app.services.status_computation import compute_patient_status
+from app.services.status_computation import compute_patient_status_from_all_questionnaires
 from app.services.utils import convert_datetime_to_iso
 
 router = APIRouter()
@@ -53,8 +53,8 @@ async def submit_questionnaire(submission: QuestionnaireSubmission):
     # Save to database
     database.save_questionnaire(data)
     
-    # Compute patient status from answers (backend computation)
-    status = compute_patient_status(submission.answers, submission.patient_id)
+    # Recompute patient status from all questionnaires (rollup)
+    status = compute_patient_status_from_all_questionnaires(submission.patient_id)
     status.id = str(uuid.uuid4())
     
     # Prepare status data for storage

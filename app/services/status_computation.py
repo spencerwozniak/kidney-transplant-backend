@@ -16,6 +16,7 @@ def load_questions() -> List[Dict[str, Any]]:
     Load questions from JSON file
     
     Returns list of question dictionaries with id, category, question, description
+    If file doesn't exist or is invalid, returns empty list (demo-safe fallback)
     """
     questions_path = Path("data/questions.json")
     questions_path.parent.mkdir(parents=True, exist_ok=True)
@@ -23,7 +24,8 @@ def load_questions() -> List[Dict[str, Any]]:
         with open(questions_path, 'r') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        raise RuntimeError(f"Failed to load questions: {e}")
+        print(f"WARNING: Failed to load questions.json: {e}. Returning empty list (demo-safe fallback).")
+        return []
 
 
 def determine_pathway_stage(
@@ -128,6 +130,86 @@ def compute_patient_status(answers: Dict[str, str], patient_id: str) -> PatientS
     
     # Determine pathway stage
     # Questionnaire exists (we're computing status from it), so has_questionnaire = True
+    checklist = database.get_checklist()
+    patient = database.get_patient()
+    pathway_stage = determine_pathway_stage(has_questionnaire=True, checklist=checklist, patient=patient)
+    
+    # Create status
+    status = PatientStatus(
+        patient_id=patient_id,
+        has_absolute=len(absolute_contraindications) > 0,
+        has_relative=len(relative_contraindications) > 0,
+        absolute_contraindications=absolute_contraindications,
+        relative_contraindications=relative_contraindications,
+        pathway_stage=pathway_stage,
+    )
+    
+    return status
+
+
+def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientStatus:
+    """
+    Compute patient status by rolling up all questionnaires for a patient
+    
+    Args:
+        patient_id: Patient ID to compute status for
+    
+    Returns:
+        PatientStatus object with computed contraindications across all questionnaires
+        - Deduplicates contraindications by question_id
+        - has_absolute = True if any absolute contraindication found across all questionnaires
+        - has_relative = True if any relative contraindication found across all questionnaires
+    """
+    # Get all questionnaires for this patient
+    questionnaires = database.get_all_questionnaires_for_patient(patient_id)
+    
+    if not questionnaires:
+        # No questionnaires - can't compute status
+        raise ValueError(f"No questionnaires found for patient {patient_id}")
+    
+    questions = load_questions()
+    
+    # Collect all contraindications across all questionnaires (deduplicated by question_id)
+    absolute_contraindications_dict = {}  # question_id -> Contraindication
+    relative_contraindications_dict = {}  # question_id -> Contraindication
+    
+    # Only process contraindications if questions list is not empty
+    if questions:
+        # Build a map of question_id -> question dict for quick lookup
+        question_map = {q['id']: q for q in questions}
+        
+        # Process each questionnaire
+        for questionnaire in questionnaires:
+            answers = questionnaire.get('answers', {})
+            
+            # Check each answer for contraindications
+            for question_id, answer in answers.items():
+                if answer == 'yes':
+                    question_info = question_map.get(question_id)
+                    if question_info:
+                        category = question_info.get('category')
+                        
+                        if category == 'absolute':
+                            # Add to absolute contraindications (deduplicated by question_id)
+                            if question_id not in absolute_contraindications_dict:
+                                absolute_contraindications_dict[question_id] = Contraindication(
+                                    id=question_id,
+                                    question=question_info['question']
+                                )
+                        elif category == 'relative':
+                            # Add to relative contraindications (deduplicated by question_id)
+                            if question_id not in relative_contraindications_dict:
+                                relative_contraindications_dict[question_id] = Contraindication(
+                                    id=question_id,
+                                    question=question_info['question']
+                                )
+    
+    # Convert dictionaries to lists
+    absolute_contraindications = list(absolute_contraindications_dict.values())
+    relative_contraindications = list(relative_contraindications_dict.values())
+    
+    # Determine pathway stage
+    # Questionnaires exist, so has_questionnaire = True
     checklist = database.get_checklist()
     patient = database.get_patient()
     pathway_stage = determine_pathway_stage(has_questionnaire=True, checklist=checklist, patient=patient)
