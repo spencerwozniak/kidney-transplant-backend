@@ -25,6 +25,9 @@ class Patient(BaseModel):
     weight: Optional[float] = Field(None, description="Weight in kilograms (kg)")
     email: Optional[str]    = Field(None, description="Email address")
     phone: Optional[str]    = Field(None, description="Phone number")
+    has_ckd_esrd: Optional[bool] = Field(None, description="Whether patient has CKD or ESRD")
+    last_gfr: Optional[float] = Field(None, description="Last known GFR (Glomerular Filtration Rate) value")
+    has_referral: Optional[bool] = Field(None, description="Whether patient already has a referral to a transplant center")
 
 
 class QuestionnaireSubmission(BaseModel):
@@ -89,6 +92,7 @@ class PatientStatus(BaseModel):
     has_relative: bool                        = Field(..., description="Whether patient has relative contraindications")
     absolute_contraindications: List[Contraindication] = Field(default_factory=list, description="List of absolute contraindications")
     relative_contraindications: List[Contraindication] = Field(default_factory=list, description="List of relative contraindications")
+    pathway_stage: Optional[str]             = Field(None, description="Current pathway stage: 'identification', 'referral', 'evaluation', 'selection', 'transplantation', 'post-transplant'")
     updated_at: Optional[datetime]            = Field(default_factory=datetime.now, description="Timestamp when status was last updated")
 
 
@@ -103,3 +107,19 @@ class FinancialProfile(BaseModel):
     answers: Dict[str, Optional[str]] = Field(..., description="Financial assessment answers as key-value pairs (question_id -> answer or null)")
     submitted_at: Optional[datetime]  = Field(default_factory=datetime.now, description="Timestamp when financial profile was submitted")
     updated_at: Optional[datetime]     = Field(default_factory=datetime.now, description="Timestamp when financial profile was last updated")
+
+
+class PatientReferralState(BaseModel):
+    """
+    Patient referral state for Transplant Access Navigator
+    
+    Tracks patient's referral status and provider information
+    """
+    patient_id: str                   = Field(..., description="Patient ID")
+    location: Dict[str, Any]          = Field(..., description="Patient location (zip, state, optionally lat/lng)")
+    has_referral: bool                = Field(default=False, description="Whether patient has a referral")
+    referral_source: Optional[str]    = Field(None, description="Source of referral (nephrologist, pcp, dialysis_center, etc.)")
+    last_nephrologist: Optional[Dict[str, Any]] = Field(None, description="Nephrologist information (name, clinic)")
+    dialysis_center: Optional[Dict[str, Any]] = Field(None, description="Dialysis center information (name, social_worker_contact)")
+    preferred_centers: List[str]      = Field(default_factory=list, description="List of preferred center IDs")
+    referral_status: str             = Field(default="not_started", description="Status: not_started, in_progress, completed")

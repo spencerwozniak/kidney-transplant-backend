@@ -9,10 +9,11 @@ from pathlib import Path
 import shutil
 import urllib.parse
 
-from app.models.schemas import TransplantChecklist
+from app.models.schemas import TransplantChecklist, PatientStatus
 from app.core import database
 from app.services.checklist_initialization import create_default_checklist
-from app.services.utils import convert_checklist_datetimes
+from app.services.utils import convert_checklist_datetimes, convert_datetime_to_iso
+from app.services.status_computation import recompute_pathway_stage
 
 router = APIRouter()
 
@@ -125,6 +126,14 @@ async def update_checklist_item(
     # Save updated checklist
     database.save_checklist(checklist_data)
     
+    # Recompute pathway stage if patient status exists
+    status_data = database.get_patient_status()
+    if status_data:
+        status = PatientStatus(**status_data)
+        status = recompute_pathway_stage(status)
+        status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
+        database.save_patient_status(status_data_updated)
+    
     # Return updated checklist
     return checklist_data
 
@@ -206,6 +215,14 @@ async def upload_checklist_item_document(
     
     # Save updated checklist
     database.save_checklist(checklist_data)
+    
+    # Recompute pathway stage if patient status exists
+    status_data = database.get_patient_status()
+    if status_data:
+        status = PatientStatus(**status_data)
+        status = recompute_pathway_stage(status)
+        status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
+        database.save_patient_status(status_data_updated)
     
     # Return updated checklist
     return checklist_data

@@ -153,3 +153,25 @@ def delete_patient():
         documents_dir = Path("data/documents") / patient_id
         if documents_dir.exists() and documents_dir.is_dir():
             shutil.rmtree(documents_dir)
+    
+    # Delete patient referral state
+    referral_state_path = Path("data/patient_referral_state.json")
+    if referral_state_path.exists():
+        referral_state_path.unlink()
+
+
+def save_patient_referral_state(state: Dict[str, Any]):
+    """
+    Save patient referral state (replace existing for demo)
+    CURRENT: Single patient assumption, overwrites existing
+    """
+    write_json("data/patient_referral_state.json", [state])
+
+
+def get_patient_referral_state() -> Optional[Dict[str, Any]]:
+    """
+    Get patient referral state (demo: only one)
+    CURRENT: Single patient assumption, no ID needed
+    """
+    states = read_json("data/patient_referral_state.json")
+    return states[0] if states else None
