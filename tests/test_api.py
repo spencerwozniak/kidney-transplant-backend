@@ -392,3 +392,85 @@ def test_patient_status_rollup_across_questionnaires(client, temp_data_dir):
             break
     assert metastatic_cancer_found, "metastatic_cancer contraindication should be in the list"
 
+
+def test_pathway_stage_has_referral_none(client, temp_data_dir):
+    """Test that pathway_stage is 'referral' when has_referral is None"""
+    # Create patient without has_referral set (None)
+    patient_response = client.post("/api/v1/patients", json={
+        "name": "Test Patient",
+        "date_of_birth": "1990-01-01",
+        "email": "test@example.com"
+        # has_referral not set, so it will be None
+    })
+    patient_id = patient_response.json()["id"]
+    
+    # Submit questionnaire
+    questionnaire_data = {
+        "patient_id": patient_id,
+        "answers": {
+            "metastatic_cancer": "no",
+            "decompensated_cirrhosis": "no"
+        }
+    }
+    response = client.post("/api/v1/questionnaire", json=questionnaire_data)
+    assert response.status_code == 200
+    
+    # Get patient status - should be 'referral' (not evaluation/selection)
+    status_response = client.get("/api/v1/patient-status")
+    assert status_response.status_code == 200
+    status_data = status_response.json()
+    assert status_data["pathway_stage"] == "referral", "pathway_stage should be 'referral' when has_referral is None"
+
+
+def test_latest_answer_wins(client, temp_data_dir):
+    """Test that latest questionnaire answer wins when there are conflicts"""
+    # 1) Create patient
+    patient_response = client.post("/api/v1/patients", json={
+        "name": "Test Patient",
+        "date_of_birth": "1990-01-01",
+        "email": "test@example.com"
+    })
+    patient_id = patient_response.json()["id"]
+    
+    # 2) Submit Q1: metastatic_cancer=yes
+    from datetime import datetime, timedelta
+    base_time = datetime.now()
+    
+    questionnaire1_data = {
+        "patient_id": patient_id,
+        "answers": {
+            "metastatic_cancer": "yes"  # Absolute contraindication
+        },
+        "submitted_at": base_time.isoformat()
+    }
+    response1 = client.post("/api/v1/questionnaire", json=questionnaire1_data)
+    assert response1.status_code == 200
+    
+    # Verify Q1 creates contraindication
+    status_response1 = client.get("/api/v1/patient-status")
+    assert status_response1.status_code == 200
+    status_data1 = status_response1.json()
+    assert status_data1["has_absolute"] is True, "First questionnaire with yes should create contraindication"
+    
+    # 3) Submit Q2: metastatic_cancer=no (later, should override)
+    questionnaire2_data = {
+        "patient_id": patient_id,
+        "answers": {
+            "metastatic_cancer": "no"  # Should clear the contraindication
+        },
+        "submitted_at": (base_time + timedelta(seconds=1)).isoformat()  # Later timestamp
+    }
+    response2 = client.post("/api/v1/questionnaire", json=questionnaire2_data)
+    assert response2.status_code == 200
+    
+    # 4) GET patient-status => has_absolute must be false and metastatic_cancer must NOT appear
+    status_response2 = client.get("/api/v1/patient-status")
+    assert status_response2.status_code == 200
+    status_data2 = status_response2.json()
+    assert status_data2["has_absolute"] is False, "Latest answer 'no' should clear the contraindication"
+    assert len(status_data2["absolute_contraindications"]) == 0, "No absolute contraindications should be present"
+    
+    # Verify metastatic_cancer is NOT in the list
+    for contra in status_data2["absolute_contraindications"]:
+        assert contra["id"] != "metastatic_cancer", "metastatic_cancer should not be in contraindications"
+
