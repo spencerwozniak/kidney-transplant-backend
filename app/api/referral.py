@@ -190,8 +190,21 @@ async def get_referral_pathway():
             "has_referral": patient.get('has_referral', False)
         }
     
-    has_nephrologist = referral_state.get('last_nephrologist', {}).get('name') is not None
-    has_dialysis_center = referral_state.get('dialysis_center', {}).get('name') is not None
+    # Safely check for nephrologist and dialysis center
+    # Handle case where values might be None
+    last_nephrologist = referral_state.get('last_nephrologist')
+    dialysis_center = referral_state.get('dialysis_center')
+    
+    has_nephrologist = (
+        last_nephrologist is not None 
+        and isinstance(last_nephrologist, dict) 
+        and last_nephrologist.get('name') is not None
+    )
+    has_dialysis_center = (
+        dialysis_center is not None 
+        and isinstance(dialysis_center, dict) 
+        and dialysis_center.get('name') is not None
+    )
     
     if has_nephrologist:
         pathway = "nephrologist_referral"

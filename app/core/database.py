@@ -63,6 +63,34 @@ def save_questionnaire(questionnaire: Dict[str, Any]):
     write_json("data/questionnaire.json", data)
 
 
+def get_questionnaire() -> Optional[Dict[str, Any]]:
+    """
+    Get questionnaire (demo: most recent for current patient)
+    CURRENT: Single patient assumption, returns most recent questionnaire
+    """
+    questionnaires = read_json("data/questionnaire.json")
+    if not questionnaires:
+        return None
+    
+    # Get current patient
+    patient = get_patient()
+    if not patient:
+        return None
+    
+    patient_id = patient.get('id')
+    # Find questionnaires for this patient
+    patient_questionnaires = [
+        q for q in questionnaires 
+        if q.get('patient_id') == patient_id
+    ]
+    
+    if not patient_questionnaires:
+        return None
+    
+    # Return the most recent one (last in list)
+    return patient_questionnaires[-1]
+
+
 def save_checklist(checklist: Dict[str, Any]):
     """
     Save checklist (replace existing for demo)

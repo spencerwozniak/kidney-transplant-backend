@@ -12,6 +12,20 @@ from app.services.utils import convert_datetime_to_iso
 router = APIRouter()
 
 
+@router.get("/questionnaire", response_model=QuestionnaireSubmission)
+async def get_questionnaire():
+    """
+    Get patient questionnaire
+    
+    CURRENT: Returns the most recent questionnaire for the current patient
+    """
+    questionnaire = database.get_questionnaire()
+    if not questionnaire:
+        raise HTTPException(status_code=404, detail="Questionnaire not found")
+    
+    return QuestionnaireSubmission(**questionnaire)
+
+
 @router.post("/questionnaire", response_model=QuestionnaireSubmission)
 async def submit_questionnaire(submission: QuestionnaireSubmission):
     """
