@@ -55,7 +55,14 @@ async def delete_patient():
     Delete patient and associated data
     
     CURRENT: Single patient assumption, deletes patient, questionnaire, checklist, and status data
+    Returns 404 if no patient exists to ensure DELETE never silently fails
     """
+    # Check if patient exists before deletion
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="No patient found")
+    
+    # Delete patient and all associated data
     database.delete_patient()
     return {"message": "Patient deleted successfully"}
 
