@@ -25,12 +25,8 @@ async def get_patient_status():
     
     patient_id = patient.get('id')
     
-    # Compute status from all questionnaires
-    try:
-        status = compute_patient_status_from_all_questionnaires(patient_id)
-    except ValueError as e:
-        # No questionnaires found
-        raise HTTPException(status_code=404, detail=str(e))
+    # Compute status from all questionnaires (or create initial status if no questionnaires exist)
+    status = compute_patient_status_from_all_questionnaires(patient_id)
     
     # Generate ID if not set
     import uuid

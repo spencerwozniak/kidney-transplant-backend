@@ -159,6 +159,8 @@ def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientSt
     """
     Compute patient status by rolling up all questionnaires for a patient
     
+    If no questionnaires exist, returns an initial status based on patient data.
+    
     Args:
         patient_id: Patient ID to compute status for
     
@@ -167,13 +169,14 @@ def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientSt
         - Deduplicates contraindications by question_id
         - has_absolute = True if any absolute contraindication found across all questionnaires
         - has_relative = True if any relative contraindication found across all questionnaires
+        - If no questionnaires exist, returns initial status with no contraindications
     """
     # Get all questionnaires for this patient
     questionnaires = database.get_all_questionnaires_for_patient(patient_id)
     
     if not questionnaires:
-        # No questionnaires - can't compute status
-        raise ValueError(f"No questionnaires found for patient {patient_id}")
+        # No questionnaires - return initial status based on patient data
+        return create_initial_status(patient_id)
     
     questions = load_questions()
     
