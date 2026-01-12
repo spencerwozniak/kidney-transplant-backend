@@ -476,7 +476,7 @@ def call_llm(system_prompt: str, user_prompt: str, provider: str = "openai", mod
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_completion_token=500
+                max_completion_tokens=500
             )
             
             return response.choices[0].message.content.strip()
