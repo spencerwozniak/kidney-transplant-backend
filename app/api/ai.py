@@ -146,8 +146,8 @@ async def query_ai_assistant_stream(request: AIQueryRequest):
         try:
             print(f"[AI Stream] Starting stream for query: {request.query[:50]}...")
             chunk_count = 0
-            # Stream AI response
-            for chunk in get_ai_response_stream(
+            # Stream AI response (async for proper event loop yielding)
+            async for chunk in get_ai_response_stream(
                 patient_id=patient_id,
                 user_query=request.query,
                 provider=request.provider or "openai",

@@ -7,6 +7,7 @@ personalized responses about patient's transplant journey.
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
+import asyncio
 
 from app.database import storage as database
 from app.database.schemas import PatientStatus
@@ -502,9 +503,13 @@ def call_llm(system_prompt: str, user_prompt: str, provider: str = "openai", mod
         raise NotImplementedError(f"Provider '{provider}' not implemented")
 
 
-def call_llm_stream(system_prompt: str, user_prompt: str, provider: str = "openai", model: str = "gpt-5.1"):
+async def call_llm_stream(system_prompt: str, user_prompt: str, provider: str = "openai", model: str = "gpt-5.1"):
     """
-    Calls the LLM provider with streaming enabled
+    Calls the LLM provider with streaming enabled (async)
+    
+    Uses async generator with asyncio.sleep(0) to ensure proper event loop
+    yielding for true streaming, especially important when running behind
+    AWS load balancers or API Gateway which may buffer responses.
     
     Args:
         system_prompt: System prompt defining AI role
@@ -534,9 +539,14 @@ def call_llm_stream(system_prompt: str, user_prompt: str, provider: str = "opena
                 stream=True
             )
             
+            # Adapt sync iterator → async stream
+            # await asyncio.sleep(0) yields control back to event loop
+            # This ensures chunks are sent immediately rather than buffered
+            # Critical for true streaming behind AWS load balancers/API Gateway
             for event in stream:
                 if event.type == "response.output_text.delta":
                     yield event.delta
+                    await asyncio.sleep(0)  # Yield control to event loop for true streaming
 
         
         except ImportError:
@@ -578,9 +588,9 @@ def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", 
     return response
 
 
-def get_ai_response_stream(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-5.1"):
+async def get_ai_response_stream(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-5.1"):
     """
-    Main function to get streaming AI response for a patient query
+    Main function to get streaming AI response for a patient query (async)
     
     Args:
         patient_id: Patient ID
@@ -598,6 +608,7 @@ def get_ai_response_stream(patient_id: str, user_query: str, provider: str = "op
     system_prompt = build_system_prompt()
     user_prompt = build_user_prompt(user_query, context)
     
-    # Call LLM with streaming
-    yield from call_llm_stream(system_prompt, user_prompt, provider, model)
+    # Call LLM with streaming (async)
+    async for chunk in call_llm_stream(system_prompt, user_prompt, provider, model):
+        yield chunk
 
