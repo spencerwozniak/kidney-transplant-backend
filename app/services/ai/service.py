@@ -397,21 +397,27 @@ def build_system_prompt() -> str:
     Returns the system prompt that defines the AI assistant's role and constraints
     """
     return """You are a helpful, empathetic assistant for patients navigating the kidney transplant journey. 
+
+CRITICAL: Keep responses BRIEF and CONCISE. Aim for 4-6 sentences maximum. Only include the most essential information that directly answers the question.
+
+FORMATTING: Use markdown to make responses visually appealing:
+- Use **bold** for emphasis on key points
+- Use bullet points (-) for lists when helpful
+- Use line breaks for readability
+- Keep formatting minimal but effective
+
 Your role is to:
-- Provide clear, empathetic guidance about where they are in the transplant process
-- Explain what steps come next based on their current status and pathway stage
-- Answer questions about their transplant journey using their personal data
-- Help them understand their checklist progress and what's needed to move forward
-- Be encouraging and supportive while being realistic about the process
+- Provide brief, direct answers to patient questions
+- Focus only on the most important information relevant to their question
+- Be specific and actionable, not verbose
 
 IMPORTANT CONSTRAINTS:
 - You are NOT providing medical advice, diagnoses, or treatment recommendations
 - Always refer patients to their healthcare providers (nephrologist, transplant team) for medical questions
 - Use the patient's actual data provided in the context to personalize your responses
-- Be specific about their current pathway stage and what it means
-- If you don't have information about something, say so rather than guessing
-- Focus on actionable next steps based on their current state
-- Use plain language and avoid overly technical medical jargon when possible"""
+- If you don't have information about something, say so briefly rather than guessing
+- Avoid repetition, elaboration, or unnecessary context
+- Answer the question directly and stop - do not add extra explanations unless critical"""
 
 
 def build_user_prompt(user_query: str, context: Dict[str, Any]) -> str:
@@ -436,8 +442,10 @@ def build_user_prompt(user_query: str, context: Dict[str, Any]) -> str:
 </patient_question>
 
 <instructions>
-Please provide a helpful, personalized response to the patient's question using their context. 
-Be specific about their current stage and what they need to do next. Remember: you are not providing medical advice.
+Provide a BRIEF, direct answer (2-4 sentences max). Only include information that directly answers the question. 
+Be specific and actionable. Do not elaborate or add unnecessary context. Remember: you are not providing medical advice.
+
+Use markdown formatting (bold, bullet points, line breaks) to make the response visually appealing and easy to read.
 </instructions>"""
     
     return prompt
@@ -470,16 +478,66 @@ def call_llm(system_prompt: str, user_prompt: str, provider: str = "openai", mod
             
             client = get_openai_client()
             
-            response = client.chat.completions.create(
+            response = client.responses.create(
                 model=model,
-                messages=[
+                input=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_completion_tokens=500
+                max_output_tokens=200
             )
             
-            return response.choices[0].message.content.strip()
+            return response.output_text.strip()
+        
+        except ImportError:
+            raise ImportError("openai package not installed. Install with: pip install openai")
+        except Exception as e:
+            raise Exception(f"OpenAI API error: {str(e)}")
+    
+    elif provider == "anthropic":
+        # Placeholder for Anthropic Claude
+        raise NotImplementedError("Anthropic provider not yet implemented")
+    
+    else:
+        raise NotImplementedError(f"Provider '{provider}' not implemented")
+
+
+def call_llm_stream(system_prompt: str, user_prompt: str, provider: str = "openai", model: str = "gpt-5.1"):
+    """
+    Calls the LLM provider with streaming enabled
+    
+    Args:
+        system_prompt: System prompt defining AI role
+        user_prompt: User prompt with query and context
+        provider: LLM provider ("openai", "anthropic", etc.)
+        model: Model name to use
+    
+    Yields:
+        Text chunks as they are generated
+    
+    Raises:
+        NotImplementedError: If provider is not implemented
+        Exception: If API call fails
+    """
+    if provider == "openai":
+        try:
+            from app.services.ai.config import get_openai_client
+            client = get_openai_client()
+            
+            stream = client.responses.create(
+                model=model,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_output_tokens=200,
+                stream=True
+            )
+            
+            for event in stream:
+                if event.type == "response.output_text.delta":
+                    yield event.delta
+
         
         except ImportError:
             raise ImportError("openai package not installed. Install with: pip install openai")
@@ -518,4 +576,28 @@ def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", 
     response = call_llm(system_prompt, user_prompt, provider, model)
     
     return response
+
+
+def get_ai_response_stream(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-5.1"):
+    """
+    Main function to get streaming AI response for a patient query
+    
+    Args:
+        patient_id: Patient ID
+        user_query: Patient's question
+        provider: LLM provider to use
+        model: Model name to use
+    
+    Yields:
+        Text chunks as they are generated
+    """
+    # Build patient context
+    context = build_patient_context(patient_id)
+    
+    # Build prompts
+    system_prompt = build_system_prompt()
+    user_prompt = build_user_prompt(user_query, context)
+    
+    # Call LLM with streaming
+    yield from call_llm_stream(system_prompt, user_prompt, provider, model)
 

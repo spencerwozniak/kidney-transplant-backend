@@ -5,11 +5,13 @@ Provides chat/query interface for AI assistant to answer questions
 about patient's transplant journey.
 """
 from fastapi import APIRouter, HTTPException, Body
+from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel, Field
+import json
 
 from app.database import storage as database
-from app.services.ai.service import get_ai_response, build_patient_context
+from app.services.ai.service import get_ai_response, get_ai_response_stream, build_patient_context
 from app.services.ai.config import is_ai_enabled
 
 
@@ -20,7 +22,7 @@ class AIQueryRequest(BaseModel):
     """Request model for AI assistant query"""
     query: str              = Field(..., description="Patient's question or query")
     provider: Optional[str] = Field(default="openai", description="LLM provider to use")
-    model: Optional[str]    = Field(default="gpt-4o", description="Model name to use (e.g., gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-5 when available)")
+    model: Optional[str]    = Field(default="gpt-5.1", description="Model name to use (e.g., gpt-5.1, gpt-5.1-mini, gpt-4-turbo, gpt-5 when available)")
 
 
 class AIQueryResponse(BaseModel):
@@ -63,7 +65,7 @@ async def query_ai_assistant(request: AIQueryRequest):
             patient_id=patient_id,
             user_query=request.query,
             provider=request.provider or "openai",
-            model=request.model or "gpt-4o"
+            model=request.model or "gpt-5.1"
         )
         
         # Build context summary for response (simplified version)
@@ -116,6 +118,76 @@ async def get_ai_context():
         "patient_id": patient_id,
         "context": context
     }
+
+
+@router.post("/ai-assistant/query/stream")
+async def query_ai_assistant_stream(request: AIQueryRequest):
+    """
+    Query the AI assistant with streaming response
+    
+    Returns a streaming response where text chunks are sent as they are generated.
+    Each chunk is sent as a JSON line: {"chunk": "text chunk"}
+    """
+    # Check if AI is enabled
+    if not is_ai_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="AI assistant is not configured. Please set OPENAI_API_KEY environment variable."
+        )
+    
+    # Verify patient exists
+    patient = database.get_patient()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    patient_id = patient.get('id')
+    
+    async def generate():
+        try:
+            print(f"[AI Stream] Starting stream for query: {request.query[:50]}...")
+            chunk_count = 0
+            # Stream AI response
+            for chunk in get_ai_response_stream(
+                patient_id=patient_id,
+                user_query=request.query,
+                provider=request.provider or "openai",
+                model=request.model or "gpt-5.1"
+            ):
+                chunk_count += 1
+                # Send each chunk as JSON
+                chunk_data = f"data: {json.dumps({'chunk': chunk})}\n\n"
+                print(f"[AI Stream] Yielding chunk {chunk_count}: {chunk[:20]}...")
+                yield chunk_data.encode('utf-8')
+            
+            print(f"[AI Stream] Completed, sent {chunk_count} chunks")
+            # Send completion signal
+            yield f"data: {json.dumps({'done': True})}\n\n".encode('utf-8')
+        
+        except ValueError as e:
+            print(f"[AI Stream] ValueError: {str(e)}")
+            error_data = json.dumps({'error': str(e)})
+            yield f"data: {error_data}\n\n".encode('utf-8')
+        except AttributeError as e:
+            import traceback
+            error_detail = f"Data structure error: {str(e)}. This may indicate missing or malformed patient data."
+            print(f"[AI API Error] {error_detail}\n{traceback.format_exc()}")
+            error_data = json.dumps({'error': error_detail})
+            yield f"data: {error_data}\n\n".encode('utf-8')
+        except Exception as e:
+            import traceback
+            error_detail = f"AI service error: {str(e)}"
+            print(f"[AI API Error] {error_detail}\n{traceback.format_exc()}")
+            error_data = json.dumps({'error': error_detail})
+            yield f"data: {error_data}\n\n".encode('utf-8')
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @router.get("/ai-assistant/status")

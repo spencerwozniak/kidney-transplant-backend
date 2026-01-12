@@ -17,7 +17,9 @@ from app.services.ai.service import (
     build_system_prompt,
     build_user_prompt,
     call_llm,
+    call_llm_stream,
     get_ai_response,
+    get_ai_response_stream,
 )
 
 __all__ = [
@@ -30,6 +32,8 @@ __all__ = [
     "build_system_prompt",
     "build_user_prompt",
     "call_llm",
+    "call_llm_stream",
     "get_ai_response",
+    "get_ai_response_stream",
 ]
 
