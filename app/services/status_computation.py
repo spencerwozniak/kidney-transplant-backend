@@ -49,14 +49,20 @@ def determine_pathway_stage(
         if has_ckd_esrd is False:
             return 'identification'
     
-    # Stage 1: Identification & Awareness - Patient exists but no questionnaire
-    if not has_questionnaire:
-        return 'identification'
-    
     # Get patient referral status
     has_referral = None
     if patient:
         has_referral = patient.get('has_referral')
+    
+    # Stage 3: Evaluation - Patient has referral but no questionnaire yet
+    # If has_referral is True and no questionnaire, they're in evaluation stage
+    # (they have a referral, so they can start the evaluation process)
+    if not has_questionnaire and has_referral is True:
+        return 'evaluation'
+    
+    # Stage 1: Identification & Awareness - Patient exists but no questionnaire and no referral
+    if not has_questionnaire:
+        return 'identification'
     
     # Stage 2: Referral - Patient does not have a referral yet
     # If has_referral is False, they're in referral stage (need to get referred)
@@ -139,6 +145,39 @@ def compute_patient_status(answers: Dict[str, str], patient_id: str) -> PatientS
         has_relative=len(relative_contraindications) > 0,
         absolute_contraindications=absolute_contraindications,
         relative_contraindications=relative_contraindications,
+        pathway_stage=pathway_stage,
+    )
+    
+    return status
+
+
+def create_initial_status(patient_id: str) -> PatientStatus:
+    """
+    Create initial patient status when no questionnaire exists yet
+    
+    This is used after patient onboarding to set an initial pathway stage
+    based on patient data (e.g., has_referral status)
+    
+    Args:
+        patient_id: Patient ID this status is associated with
+    
+    Returns:
+        PatientStatus object with initial pathway stage (no contraindications yet)
+    """
+    # Get patient data to determine initial stage
+    patient = database.get_patient()
+    checklist = database.get_checklist()
+    
+    # Determine pathway stage (no questionnaire yet)
+    pathway_stage = determine_pathway_stage(has_questionnaire=False, checklist=checklist, patient=patient)
+    
+    # Create initial status with no contraindications
+    status = PatientStatus(
+        patient_id=patient_id,
+        has_absolute=False,
+        has_relative=False,
+        absolute_contraindications=[],
+        relative_contraindications=[],
         pathway_stage=pathway_stage,
     )
     
