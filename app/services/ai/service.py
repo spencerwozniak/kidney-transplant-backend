@@ -84,6 +84,8 @@ def build_patient_context(patient_id: str) -> Dict[str, Any]:
     # Checklist Progress
     if checklist_data:
         items = checklist_data.get("items", []) or []
+        # Filter out None items and ensure items are dictionaries
+        items = [item for item in items if item and isinstance(item, dict)]
         completed_items = [item for item in items if item.get("is_complete", False)]
         incomplete_items = [item for item in items if not item.get("is_complete", False)]
         
@@ -141,13 +143,17 @@ def build_patient_context(patient_id: str) -> Dict[str, Any]:
     
     # Referral Information
     if referral_state:
+        # Safely handle nested dictionaries that might be None
+        last_nephrologist = referral_state.get("last_nephrologist") or {}
+        dialysis_center = referral_state.get("dialysis_center") or {}
+        
         context["referral_information"] = {
             "has_referral": referral_state.get("has_referral", False),
             "referral_status": referral_state.get("referral_status", "not_started"),
-            "has_nephrologist": bool(referral_state.get("last_nephrologist", {}).get("name")),
-            "has_dialysis_center": bool(referral_state.get("dialysis_center", {}).get("name")),
-            "preferred_centers_count": len(referral_state.get("preferred_centers", [])),
-            "location": referral_state.get("location", {})
+            "has_nephrologist": bool(last_nephrologist.get("name") if isinstance(last_nephrologist, dict) else False),
+            "has_dialysis_center": bool(dialysis_center.get("name") if isinstance(dialysis_center, dict) else False),
+            "preferred_centers_count": len(referral_state.get("preferred_centers", []) or []),
+            "location": referral_state.get("location", {}) or {}
         }
     
     return context
@@ -187,15 +193,17 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
         status_lines = []
         if status.get("has_absolute_contraindications"):
             status_lines.append("Has ABSOLUTE contraindications (these may prevent transplant):")
-            for contra in status.get("absolute_contraindications", []):
-                status_lines.append(f"  • {contra.get('question')}")
+            for contra in status.get("absolute_contraindications", []) or []:
+                if contra and isinstance(contra, dict):
+                    status_lines.append(f"  • {contra.get('question', 'Unknown contraindication')}")
         else:
             status_lines.append("No absolute contraindications identified")
         
         if status.get("has_relative_contraindications"):
             status_lines.append("\nHas RELATIVE contraindications (these may need to be addressed):")
-            for contra in status.get("relative_contraindications", []):
-                status_lines.append(f"  • {contra.get('question')}")
+            for contra in status.get("relative_contraindications", []) or []:
+                if contra and isinstance(contra, dict):
+                    status_lines.append(f"  • {contra.get('question', 'Unknown contraindication')}")
         else:
             status_lines.append("No relative contraindications identified")
         
