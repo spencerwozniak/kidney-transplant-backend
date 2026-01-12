@@ -5,7 +5,31 @@ Handles configuration for AI/LLM providers including API keys and client setup.
 """
 import os
 from typing import Optional
+from pathlib import Path
 from openai import OpenAI
+
+# Load environment variables from .env file
+# This ensures .env is loaded regardless of how the app is started
+try:
+    from dotenv import load_dotenv
+    # Get the project root directory (parent of app/)
+    project_root = Path(__file__).parent.parent.parent.parent
+    env_path = project_root / '.env'
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+        # Debug: Check if API key was loaded (without exposing the key)
+        api_key_loaded = os.getenv("OPENAI_API_KEY") is not None
+        if api_key_loaded:
+            print(f"[AI Config] .env file loaded from {env_path}, OPENAI_API_KEY found")
+        else:
+            print(f"[AI Config] .env file loaded from {env_path}, but OPENAI_API_KEY not found")
+    else:
+        print(f"[AI Config] Warning: .env file not found at {env_path}")
+except ImportError:
+    # python-dotenv not installed, skip loading .env
+    print("[AI Config] Warning: python-dotenv not installed, .env file will not be loaded")
+except Exception as e:
+    print(f"[AI Config] Error loading .env file: {e}")
 
 
 def get_openai_api_key() -> Optional[str]:

@@ -6,8 +6,21 @@ FastAPI app
 - Single router for all endpoints
 - Basic health check
 """
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Load environment variables from .env file early
+try:
+    from dotenv import load_dotenv
+    # Get the project root directory (parent of app/)
+    project_root = Path(__file__).parent.parent
+    env_path = project_root / '.env'
+    load_dotenv(dotenv_path=env_path)
+except ImportError:
+    # python-dotenv not installed, skip loading .env
+    pass
+
 from app.api import router
 from app.core.config import CORS_ORIGINS
 
