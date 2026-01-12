@@ -226,3 +226,4 @@ def get_patient_referral_state() -> Optional[Dict[str, Any]]:
     """
     states = read_json("data/patient_referral_state.json")
     return states[0] if states else None
+

@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from fastapi.testclient import TestClient
 from app.main import app
-from app.core import database
+from app.database import storage as database
 
 
 @pytest.fixture

@@ -3,9 +3,9 @@ Patient status endpoints
 """
 from fastapi import APIRouter, HTTPException
 
-from app.models.schemas import PatientStatus
-from app.core import database
-from app.services.status_computation import compute_patient_status_from_all_questionnaires
+from app.database.schemas import PatientStatus
+from app.database import storage as database
+from app.services.status.computation import compute_patient_status_from_all_questionnaires
 from app.services.utils import convert_datetime_to_iso
 
 router = APIRouter()

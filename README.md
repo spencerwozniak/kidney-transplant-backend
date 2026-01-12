@@ -109,14 +109,27 @@ kidney-transplant-backend/
 │   │   ├── checklist.py        # Checklist endpoints
 │   │   └── status.py           # Patient status endpoints
 │   ├── core/
-│   │   ├── config.py           # CORS origins configuration
-│   │   └── database.py         # JSON file read/write functions
-│   ├── models/
-│   │   └── schemas.py          # Pydantic models
-│   └── services/
-│       ├── checklist_initialization.py  # Default checklist creation
-│       ├── status_computation.py        # Status computation from questionnaire
-│       └── utils.py                     # Utility functions
+│   │   └── config.py           # CORS origins configuration
+│   ├── database/
+│   │   ├── schemas.py          # Pydantic data models (renamed from 'models' to avoid confusion with AI models)
+│   │   └── storage.py          # JSON file read/write functions and data persistence operations
+│   ├── services/
+│   │   ├── ai/
+│   │   │   ├── config.py       # AI/LLM configuration (API keys, client setup)
+│   │   │   └── service.py      # AI assistant service (prompt building, LLM interaction)
+│   │   ├── checklist/
+│   │   │   └── initialization.py  # Default checklist creation
+│   │   ├── status/
+│   │   │   └── computation.py     # Status computation from questionnaire
+│   │   └── utils.py                # Utility functions
+│   └── api/
+│       ├── ai.py                # AI assistant API endpoints
+│       ├── patients.py          # Patient endpoints
+│       ├── questionnaire.py     # Questionnaire endpoints
+│       ├── checklist.py         # Checklist endpoints
+│       ├── status.py            # Patient status endpoints
+│       ├── finance.py           # Financial assessment endpoints
+│       └── referral.py          # Referral endpoints
 ├── data/                       # Auto-created JSON files (gitignored)
 │   ├── patient.json            # Single patient data
 │   ├── questionnaire.json      # Questionnaire submissions
@@ -127,6 +140,39 @@ kidney-transplant-backend/
 ├── run.py                      # Dev server: uvicorn app.main:app --reload
 └── README.md
 ```
+
+### Directory Organization
+
+The project follows a layered architecture with clear separation of concerns:
+
+- **`app/core/`** - Core infrastructure layer
+  - Contains foundational components that the rest of the application depends on
+  - `config.py` - Application-wide configuration (CORS, etc.)
+
+- **`app/database/`** - Database layer (data models and storage)
+  - Contains both data models (schemas) and storage operations
+  - Renamed from `models/` to avoid confusion with AI/LLM models
+  - `schemas.py` - All Pydantic models (Patient, QuestionnaireSubmission, etc.)
+  - `storage.py` - Data persistence layer (JSON file operations, save/get functions)
+
+- **`app/services/`** - Business logic layer
+  - Contains domain-specific business logic organized by feature
+  - `ai/` - AI/LLM services (config, service logic)
+  - `checklist/` - Checklist-related services
+  - `status/` - Status computation services
+  - `utils.py` - Shared utility functions for data conversion
+
+- **`app/api/`** - API layer
+  - Contains FastAPI route handlers
+  - Thin layer that delegates to services and uses database models
+  - Routes organized by feature domain (patients, checklist, status, ai, etc.)
+
+This organization ensures:
+- **Separation of concerns**: Infrastructure, data models, business logic, and API are clearly separated
+- **Dependency direction**: API → Services → Core/Database (clean dependency flow)
+- **Clarity**: No confusion between data models and AI models
+- **Cohesion**: Related services are grouped into subdirectories (ai/, checklist/, status/)
+- **Scalability**: Easy to add new service domains as subdirectories
 
 ### Key Files
 
@@ -143,15 +189,17 @@ kidney-transplant-backend/
 - `checklist.py` - Checklist management and item updates
 - `status.py` - Patient status retrieval
 
-**`app/core/database.py`** - Data storage
+**`app/database/storage.py`** - Data storage operations
 
 - `read_json()` / `write_json()` - File I/O helpers
 - `save_patient()` / `get_patient()` / `delete_patient()` - Patient operations
-- `save_questionnaire()` - Appends questionnaire submissions
+- `save_questionnaire()` / `get_questionnaire()` / `get_all_questionnaires_for_patient()` - Questionnaire operations
 - `save_checklist()` / `get_checklist()` - Checklist operations
 - `save_patient_status()` / `get_patient_status()` - Status operations
+- `save_financial_profile()` / `get_financial_profile()` - Financial profile operations
+- `save_patient_referral_state()` / `get_patient_referral_state()` - Referral state operations
 
-**`app/models/schemas.py`** - Pydantic models
+**`app/database/schemas.py`** - Pydantic data models
 
 - `Patient` - id, name, date_of_birth, sex, height, weight, email, phone
 - `QuestionnaireSubmission` - id, patient_id, answers, submitted_at
@@ -159,6 +207,39 @@ kidney-transplant-backend/
 - `ChecklistItem` - id, title, description, is_complete, notes, completed_at, order, documents
 - `PatientStatus` - id, patient_id, has_absolute, has_relative, absolute_contraindications, relative_contraindications, pathway_stage, updated_at
 - `Contraindication` - id, question
+- `FinancialProfile` - Financial assessment data
+- `PatientReferralState` - Referral status and provider information
+
+**`app/services/ai/config.py`** - AI/LLM configuration
+
+- `get_openai_api_key()` - Retrieves API key from environment
+- `get_openai_client()` - Creates configured OpenAI client
+- `is_ai_enabled()` - Checks if AI is configured
+
+**`app/services/ai/service.py`** - AI assistant service
+
+- `build_patient_context()` - Aggregates all patient data into structured context
+- `format_context_for_prompt()` - Formats context for LLM prompts
+- `build_system_prompt()` - Creates system prompt with role and constraints
+- `build_user_prompt()` - Combines user query with patient context
+- `call_llm()` - Interfaces with LLM providers (OpenAI implemented)
+- `get_ai_response()` - Main entry point for getting AI responses
+
+**`app/api/ai.py`** - AI assistant API endpoints
+
+- `POST /api/v1/ai-assistant/query` - Query the AI assistant
+- `GET /api/v1/ai-assistant/status` - Check AI configuration status
+- `GET /api/v1/ai-assistant/context` - Get patient context (debug)
+
+**`app/services/checklist/initialization.py`** - Checklist services
+
+- `create_default_checklist()` - Creates default pre-transplant checklist
+
+**`app/services/status/computation.py`** - Status computation services
+
+- `compute_patient_status_from_all_questionnaires()` - Computes status from all questionnaires
+- `determine_pathway_stage()` - Determines current pathway stage
+- `recompute_pathway_stage()` - Recomputes pathway stage when checklist changes
 
 **`app/services/`** - Business logic
 

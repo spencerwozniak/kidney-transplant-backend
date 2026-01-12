@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from app.models.schemas import PatientStatus, Contraindication
-from app.core import database
+from app.database.schemas import PatientStatus, Contraindication
+from app.database import storage as database
 
 
 def load_questions() -> List[Dict[str, Any]]:

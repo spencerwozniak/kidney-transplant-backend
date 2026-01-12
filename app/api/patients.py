@@ -4,9 +4,9 @@ Patient management endpoints
 from fastapi import APIRouter, HTTPException
 import uuid
 
-from app.models.schemas import Patient
-from app.core import database
-from app.services.checklist_initialization import create_default_checklist
+from app.database.schemas import Patient
+from app.database import storage as database
+from app.services.checklist.initialization import create_default_checklist
 from app.services.utils import convert_checklist_datetimes
 
 router = APIRouter()

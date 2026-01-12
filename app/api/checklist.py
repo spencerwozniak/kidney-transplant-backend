@@ -9,11 +9,11 @@ from pathlib import Path
 import shutil
 import urllib.parse
 
-from app.models.schemas import TransplantChecklist, PatientStatus
-from app.core import database
-from app.services.checklist_initialization import create_default_checklist
+from app.database.schemas import TransplantChecklist, PatientStatus
+from app.database import storage as database
+from app.services.checklist.initialization import create_default_checklist
 from app.services.utils import convert_checklist_datetimes, convert_datetime_to_iso
-from app.services.status_computation import recompute_pathway_stage
+from app.services.status.computation import recompute_pathway_stage
 
 router = APIRouter()
 

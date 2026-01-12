@@ -4,7 +4,7 @@ Checklist initialization service
 Creates default pre-transplant checklist for new patients
 """
 from datetime import datetime
-from app.models.schemas import TransplantChecklist, ChecklistItem
+from app.database.schemas import TransplantChecklist, ChecklistItem
 
 
 def create_default_checklist(patient_id: str) -> TransplantChecklist:

@@ -4,8 +4,8 @@ Financial profile endpoints
 from fastapi import APIRouter, HTTPException
 import uuid
 
-from app.models.schemas import FinancialProfile
-from app.core import database
+from app.database.schemas import FinancialProfile
+from app.database import storage as database
 from app.services.utils import convert_datetime_to_iso
 
 router = APIRouter()

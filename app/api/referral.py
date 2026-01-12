@@ -9,8 +9,8 @@ import json
 import math
 from pathlib import Path
 
-from app.core import database
-from app.models.schemas import PatientReferralState
+from app.database import storage as database
+from app.database.schemas import PatientReferralState
 
 router = APIRouter()
 
