@@ -20,7 +20,7 @@ class AIQueryRequest(BaseModel):
     """Request model for AI assistant query"""
     query: str = Field(..., description="Patient's question or query")
     provider: Optional[str] = Field(default="openai", description="LLM provider to use")
-    model: Optional[str] = Field(default="gpt-3.5-turbo", description="Model name to use")
+    model: Optional[str] = Field(default="gpt-5.1", description="Model name to use")
 
 
 class AIQueryResponse(BaseModel):
@@ -63,7 +63,7 @@ async def query_ai_assistant(request: AIQueryRequest):
             patient_id=patient_id,
             user_query=request.query,
             provider=request.provider or "openai",
-            model=request.model or "gpt-3.5-turbo"
+            model=request.model or "gpt-5.1"
         )
         
         # Build context summary for response (simplified version)

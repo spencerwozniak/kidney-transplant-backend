@@ -302,7 +302,7 @@ Be specific about their current stage and what they need to do next. Remember: y
     return prompt
 
 
-def call_llm(system_prompt: str, user_prompt: str, provider: str = "openai", model: str = "gpt-3.5-turbo") -> str:
+def call_llm(system_prompt: str, user_prompt: str, provider: str = "openai", model: str = "gpt-5.1") -> str:
     """
     Calls the LLM provider with the constructed prompts
     
@@ -354,7 +354,7 @@ def call_llm(system_prompt: str, user_prompt: str, provider: str = "openai", mod
         raise NotImplementedError(f"Provider '{provider}' not implemented")
 
 
-def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-3.5-turbo") -> str:
+def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-5.1") -> str:
     """
     Main function to get AI response for a patient query
     
