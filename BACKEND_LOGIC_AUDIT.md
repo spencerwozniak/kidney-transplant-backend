@@ -15,17 +15,27 @@
 
 **Rule:**
 - Load questions from `data/questions.json` via `load_questions()` (returns `[]` if missing - demo-safe)
-- For each questionnaire in patient's history:
-  - For each answer where `answer == 'yes'`:
-    - Look up question in `questions.json` by `question_id`
-    - If `category == 'absolute'` → add to `absolute_contraindications_dict` (deduplicated by `question_id`)
-    - If `category == 'relative'` → add to `relative_contraindications_dict` (deduplicated by `question_id`)
+- Get all questionnaires for patient via `database.get_all_questionnaires_for_patient(patient_id)`
+- **Sort questionnaires by `submitted_at` descending** (most recent first) - questionnaires without `submitted_at` are treated as oldest
+- Build `latest_answers` dict by processing questionnaires from newest to oldest:
+  - For each questionnaire's `answers` dict:
+    - For each `question_id` → `answer` pair:
+      - Only set if `question_id` not already in `latest_answers` (newest answer wins)
+- For each question_id in `latest_answers` where `answer == 'yes'`:
+  - Look up question in `questions.json` by `question_id`
+  - If `category == 'absolute'` → add to `absolute_contraindications_dict` (deduplicated by `question_id`)
+  - If `category == 'relative'` → add to `relative_contraindications_dict` (deduplicated by `question_id`)
 - **has_absolute** = `True` if `len(absolute_contraindications) > 0`
 - **has_relative** = `True` if `len(relative_contraindications) > 0`
 
+**Key behavior:**
+- **Most recent answer wins** - If patient answers "yes" then later answers "no" for same question, the "no" clears the contraindication
+- **Deduplication** - same question_id only appears once in lists
+- **Empty questions.json** → returns empty contraindication lists (demo-safe, no crash)
+
 **When it runs:**
-- `POST /api/v1/questionnaire` → calls `compute_patient_status_from_all_questionnaires()` after saving
-- `GET /api/v1/patient-status` → calls `compute_patient_status_from_all_questionnaires()` on every request
+- `POST /api/v1/questionnaire` → calls `compute_patient_status_from_all_questionnaires()` after saving (line 57)
+- `GET /api/v1/patient-status` → calls `compute_patient_status_from_all_questionnaires()` on every request (line 30)
 
 **Inputs:**
 - `patient_id: str` - Patient ID to compute status for
@@ -37,11 +47,7 @@
   - `has_relative: bool`
   - `absolute_contraindications: List[Contraindication]` (deduplicated)
   - `relative_contraindications: List[Contraindication]` (deduplicated)
-
-**Key behavior:**
-- **Rollup across ALL questionnaires** - if ANY questionnaire has "yes" for an absolute contraindication, `has_absolute=True`
-- **Deduplication** - same question_id only appears once in lists
-- **Empty questions.json** → returns empty contraindication lists (demo-safe, no crash)
+  - `pathway_stage: str` (computed via `determine_pathway_stage()`)
 
 ---
 
@@ -52,14 +58,18 @@
 **Rule:**
 1. Get all questionnaires for patient via `database.get_all_questionnaires_for_patient(patient_id)`
 2. If no questionnaires → raise `ValueError` (caught by endpoint, returns 404)
-3. Process ALL questionnaires in order:
+3. **Sort questionnaires by `submitted_at` descending** (most recent first) - missing `submitted_at` treated as oldest
+4. Build `latest_answers` dict by processing questionnaires from newest to oldest:
    - For each questionnaire's `answers` dict:
-     - If `answer == 'yes'` for any question_id:
-       - Check if question exists in `questions.json`
-       - If category='absolute' → add to absolute dict (if not already present)
-       - If category='relative' → add to relative dict (if not already present)
-4. **Union logic:** Any "yes" across ANY questionnaire = contraindication present
-5. **Deduplication:** Same question_id only counted once (first occurrence wins)
+     - For each `question_id` → `answer` pair:
+       - Only add to `latest_answers` if `question_id` not already present (newest wins)
+5. Process `latest_answers` (only 'yes' answers create contraindications):
+   - For each `question_id` where `answer == 'yes'`:
+     - Check if question exists in `questions.json`
+     - If category='absolute' → add to absolute dict (deduplicated by question_id)
+     - If category='relative' → add to relative dict (deduplicated by question_id)
+6. **Most recent answer wins:** Later "no" answers override earlier "yes" answers
+7. **Deduplication:** Same question_id only counted once (most recent answer used)
 
 **When it runs:**
 - `POST /api/v1/questionnaire` (line 57) - after saving new questionnaire
@@ -70,12 +80,12 @@
 - Reads: `data/questionnaire.json`, `data/questions.json`
 
 **Outputs:**
-- `PatientStatus` with aggregated contraindications
+- `PatientStatus` with aggregated contraindications (based on most recent answers)
 
 **Example:**
-- Questionnaire 1: `metastatic_cancer: "no"` → no contraindication
-- Questionnaire 2: `metastatic_cancer: "yes"` → absolute contraindication added
-- Result: `has_absolute=True`, `absolute_contraindications` contains metastatic_cancer
+- Questionnaire 1 (older): `metastatic_cancer: "yes"` → would add contraindication
+- Questionnaire 2 (newer): `metastatic_cancer: "no"` → clears contraindication
+- Result: `has_absolute=False`, no contraindications (most recent answer wins)
 
 ---
 
@@ -86,28 +96,32 @@
 **Decision Tree (in order):**
 
 ```
-1. IF patient.has_ckd_esrd == False:
+1. IF patient exists AND patient.has_ckd_esrd == False:
    → return 'identification'
 
-2. IF has_questionnaire == False:
+2. IF has_referral == True AND has_questionnaire == False:
+   → return 'evaluation' (has referral but no questionnaire yet)
+
+3. IF has_questionnaire == False:
    → return 'identification'
 
-3. IF patient.has_referral == False:
+4. IF has_referral is not True (False or None):
+   → return 'referral' (need referral to advance)
+
+5. IF has_questionnaire == True AND checklist == None:
    → return 'referral'
 
-4. IF has_questionnaire == True AND checklist == None:
-   → return 'referral'
-
-5. IF checklist exists:
-   a. IF checklist.items is empty:
+6. IF checklist exists:
+   a. Get items = checklist.get('items', []) or [] (guard against None)
+   b. IF items is empty:
       → return 'referral'
-   b. Calculate: completion_percentage = completed_items / total_items
-   c. IF completion_percentage < 0.8:
+   c. Calculate: completion_percentage = completed_items / total_items (0 if total_items == 0)
+   d. IF completion_percentage < 0.8:
       → return 'evaluation'
-   d. IF completion_percentage >= 0.8:
+   e. IF completion_percentage >= 0.8:
       → return 'selection'
 
-6. DEFAULT (has_questionnaire == True, checklist exists but logic didn't match):
+7. DEFAULT (has_questionnaire == True, checklist exists but logic didn't match):
    → return 'referral'
 ```
 
@@ -126,22 +140,24 @@
 
 **Key thresholds:**
 - **80% completion** = threshold between 'evaluation' and 'selection'
-- **has_referral=False** → always 'referral' (even if checklist complete)
+- **has_referral is not True** (False or None) → always 'referral' (even if checklist complete)
 - **No checklist** → always 'referral' (even if questionnaire exists)
+- **has_referral=True + no questionnaire** → 'evaluation' (special case: referral exists but questionnaire not completed)
+- **checklist.items=None guard** → treated as empty list (line 84: `items = items or []`)
 
 ---
 
 ### 1d. Checklist Completion Logic
 
-**Function:** `app/services/status_computation.py::determine_pathway_stage()` (lines 74-90)
+**Function:** `app/services/status_computation.py::determine_pathway_stage()` (lines 82-99)
 
 **Rule:**
-- Get `checklist.items` (list of ChecklistItem objects)
-- Count: `completed_items = sum(1 for item in items if item.get('is_complete', False))`
-- Count: `total_items = len(items)`
-- Calculate: `completion_percentage = completed_items / total_items` (0 if total_items == 0)
-- **If < 80%:** → `'evaluation'`
-- **If >= 80%:** → `'selection'`
+- Get `checklist.items` with guard: `items = checklist.get('items', []) or []` (line 83-84)
+- Count: `completed_items = sum(1 for item in items if item.get('is_complete', False))` (line 88)
+- Count: `total_items = len(items)` (line 89)
+- Calculate: `completion_percentage = completed_items / total_items if total_items > 0 else 0` (line 90)
+- **If < 80%:** → `'evaluation'` (line 93)
+- **If >= 80%:** → `'selection'` (line 98)
 
 **When it runs:**
 - Every time `determine_pathway_stage()` is called (which happens on status computation)
@@ -154,8 +170,12 @@
 - Affects `pathway_stage` in PatientStatus
 
 **Checklist update triggers:**
-- `PATCH /api/v1/checklist/items/{item_id}` (line 129-135) - updates item, then calls `recompute_pathway_stage()`
-- `POST /api/v1/checklist/items/{item_id}/documents` (line 219-225) - uploads document, then calls `recompute_pathway_stage()`
+- `PATCH /api/v1/checklist/items/{item_id}` (lines 129-135) - updates item, then calls `recompute_pathway_stage()`
+- `POST /api/v1/checklist/items/{item_id}/documents` (lines 219-225) - uploads document, then calls `recompute_pathway_stage()`
+
+**Checklist creation:**
+- `POST /api/v1/patients` (lines 27-34) - automatically creates default checklist with 6 items
+- `GET /api/v1/checklist` (lines 30-46) - auto-creates default checklist if none exists (only if patient exists)
 
 ---
 
@@ -168,17 +188,18 @@ Frontend: POST /api/v1/patients
   ↓
 app/api/patients.py::create_patient()
   ↓
-1. Generate UUID for patient.id
-2. database.save_patient() → writes data/patient.json
-3. create_default_checklist() → creates 6 default items
-4. database.save_checklist() → writes data/checklist.json
+1. Generate UUID for patient.id (line 23)
+2. database.save_patient() → writes data/patient.json (line 24)
+3. create_default_checklist(patient.id) → creates 6 default items (line 27)
+4. Generate UUID for checklist.id (line 28)
+5. database.save_checklist() → writes data/checklist.json (line 34)
   ↓
 Response: Patient object (with id)
 ```
 
 **Files touched:**
 - `data/patient.json` (created/overwritten)
-- `data/checklist.json` (created/overwritten)
+- `data/checklist.json` (created/overwritten - default checklist with 6 items)
 
 ---
 
@@ -189,17 +210,22 @@ Frontend: POST /api/v1/questionnaire
   ↓
 app/api/questionnaire.py::submit_questionnaire()
   ↓
-1. Verify patient exists (database.get_patient())
-2. Verify patient_id matches
-3. Generate UUID for submission.id
-4. database.save_questionnaire() → APPENDS to data/questionnaire.json
-5. compute_patient_status_from_all_questionnaires(patient_id):
+1. Verify patient exists (database.get_patient()) (line 38)
+2. Verify patient_id matches current patient (line 43-44)
+3. Generate UUID for submission.id if not provided (line 47-48)
+4. Convert datetime fields to ISO strings (line 51)
+5. database.save_questionnaire() → APPENDS to data/questionnaire.json (line 54)
+6. compute_patient_status_from_all_questionnaires(patient_id):
    a. database.get_all_questionnaires_for_patient() → reads data/questionnaire.json
-   b. load_questions() → reads data/questions.json
-   c. Process all questionnaires → compute contraindications
-   d. determine_pathway_stage() → reads data/checklist.json, data/patient.json
-   e. Returns PatientStatus
-6. database.save_patient_status() → OVERWRITES data/patient_status.json
+   b. Sort questionnaires by submitted_at descending (most recent first)
+   c. Build latest_answers dict (newest answer wins per question_id)
+   d. load_questions() → reads data/questions.json
+   e. Process latest_answers → compute contraindications (only 'yes' answers)
+   f. determine_pathway_stage() → reads data/checklist.json, data/patient.json
+   g. Returns PatientStatus
+7. Generate UUID for status.id (line 58)
+8. Convert datetime fields to ISO strings (line 61)
+9. database.save_patient_status() → OVERWRITES data/patient_status.json (line 64)
   ↓
 Response: QuestionnaireSubmission object
 ```
@@ -218,15 +244,20 @@ Frontend: GET /api/v1/patient-status
   ↓
 app/api/status.py::get_patient_status()
   ↓
-1. database.get_patient() → reads data/patient.json
-2. compute_patient_status_from_all_questionnaires(patient_id):
+1. database.get_patient() → reads data/patient.json (line 22)
+2. If no patient → HTTP 404 (line 23-24)
+3. compute_patient_status_from_all_questionnaires(patient_id):
    a. database.get_all_questionnaires_for_patient() → reads data/questionnaire.json
-   b. load_questions() → reads data/questions.json
-   c. Process all questionnaires → compute contraindications
-   d. determine_pathway_stage() → reads data/checklist.json, data/patient.json
-   e. Returns PatientStatus
-3. Generate UUID if status.id missing
-4. database.save_patient_status() → OVERWRITES data/patient_status.json
+   b. Sort questionnaires by submitted_at descending (most recent first)
+   c. Build latest_answers dict (newest answer wins per question_id)
+   d. load_questions() → reads data/questions.json
+   e. Process latest_answers → compute contraindications (only 'yes' answers)
+   f. determine_pathway_stage() → reads data/checklist.json, data/patient.json
+   g. Returns PatientStatus
+4. If ValueError (no questionnaires) → HTTP 404 (line 31-33)
+5. Generate UUID if status.id missing (line 37-38)
+6. Convert datetime fields to ISO strings (line 41)
+7. database.save_patient_status() → OVERWRITES data/patient_status.json (line 42)
   ↓
 Response: PatientStatus object
 ```
@@ -244,15 +275,23 @@ Frontend: PATCH /api/v1/checklist/items/{item_id}
   ↓
 app/api/checklist.py::update_checklist_item()
   ↓
-1. Verify patient exists
-2. database.get_checklist() → reads data/checklist.json
-3. Find item by item_id
-4. Update item fields (is_complete, completed_at, notes, documents)
-5. database.save_checklist() → OVERWRITES data/checklist.json
-6. If patient_status exists:
-   a. database.get_patient_status() → reads data/patient_status.json
-   b. recompute_pathway_stage() → reads data/checklist.json, data/patient.json
-   c. database.save_patient_status() → OVERWRITES data/patient_status.json
+1. Verify patient exists (line 92-94)
+2. database.get_checklist() → reads data/checklist.json (line 97)
+3. If no checklist → HTTP 404 (line 98-99)
+4. Find item by item_id (line 103-118)
+5. Update item fields:
+   - is_complete (if False, clears completed_at)
+   - completed_at
+   - notes (None if empty string)
+   - documents
+6. Update checklist.updated_at timestamp (line 124)
+7. database.save_checklist() → OVERWRITES data/checklist.json (line 127)
+8. If patient_status exists:
+   a. database.get_patient_status() → reads data/patient_status.json (line 130)
+   b. Create PatientStatus object from data (line 132)
+   c. recompute_pathway_stage() → reads data/checklist.json, data/patient.json (line 133)
+   d. Convert datetime fields to ISO strings (line 134)
+   e. database.save_patient_status() → OVERWRITES data/patient_status.json (line 135)
   ↓
 Response: TransplantChecklist object
 ```
@@ -326,18 +365,18 @@ Response: {"message": "Patient deleted successfully"}
 | # | Edge Case | Current Handling | Severity | Proposed Fix |
 |---|-----------|------------------|----------|--------------|
 | 1 | **missing questions.json** | ✅ Returns `[]`, no crash. Status computed with empty contraindications. | Minor | None needed - already demo-safe |
-| 2 | **multiple questionnaires with conflicting answers** | ✅ Rollup logic: ANY "yes" = contraindication. Later "no" doesn't remove it. | **Demo-breaker** | **Fix:** Track most recent answer per question_id, or add "cleared" flag |
+| 2 | **multiple questionnaires with conflicting answers** | ✅ **FIXED:** Rollup logic sorts by submitted_at descending, uses most recent answer per question_id. Later "no" clears earlier "yes". | None | Already fixed |
 | 3 | **delete patient when no patient exists** | ✅ Returns 404 (fixed) | None | Already fixed |
-| 4 | **checklist exists without patient** | ⚠️ GET /checklist auto-creates if no patient. But pathway_stage logic assumes patient exists. | Minor | Add patient check in GET /checklist before auto-create |
+| 4 | **checklist exists without patient** | ✅ GET /checklist checks for patient first (line 33-34), returns 404 if no patient. Auto-create only happens if patient exists. | None | Already handled correctly |
 | 5 | **document upload without checklist** | ✅ Returns 404 "No checklist found" | None | Already handled |
 | 6 | **patient-status called before questionnaire** | ✅ Returns 404 "No questionnaires found" | None | Already handled |
 | 7 | **patient-status called with patient but no questionnaires** | ✅ Returns 404 (ValueError caught) | None | Already handled |
 | 8 | **checklist completion exactly 80%** | ✅ Returns 'selection' (>= 0.8) | None | Correct behavior |
 | 9 | **checklist with 0 items** | ✅ Returns 'referral' (line 76-77) | None | Correct behavior |
-| 10 | **has_referral=None vs has_referral=False** | ⚠️ `None` treated as "has referral" (line 65 only checks `False`). May skip referral stage incorrectly. | **Demo-breaker** | **Fix:** Explicitly check `has_referral is True` for evaluation/selection stages |
+| 10 | **has_referral=None vs has_referral=False** | ✅ **FIXED:** Code checks `has_referral is not True` (line 73), so both `False` and `None` return 'referral'. Only explicit `True` advances past referral. | None | Already fixed |
 | 11 | **questionnaire with unknown question_id** | ✅ Ignored (question_map.get() returns None) | Minor | None needed - graceful degradation |
 | 12 | **empty answers dict in questionnaire** | ✅ No contraindications found (loop doesn't execute) | None | Correct behavior |
-| 13 | **checklist.items is None (not empty list)** | ⚠️ `checklist.get('items', [])` returns `[]` if missing, but if `items=None`, would crash on `len()`. | **Demo-breaker** | **Fix:** Add `items = items or []` guard |
+| 13 | **checklist.items is None (not empty list)** | ✅ **FIXED:** Code has `items = items or []` guard on line 84, preventing crash if items is None. | None | Already fixed |
 | 14 | **pathway_stage computed when patient deleted mid-request** | ⚠️ Race condition: patient deleted between get_patient() and status computation. | Minor | Low risk in single-user demo |
 | 15 | **questions.json has invalid JSON** | ✅ Returns `[]`, no crash | None | Already demo-safe |
 
@@ -345,60 +384,53 @@ Response: {"message": "Patient deleted successfully"}
 
 ## 4. "IS IT THE BEST LOGIC?" - Clinical Realism Evaluation
 
-### Current Pathway Stage Logic Issues:
+### Current Pathway Stage Logic Status:
 
-**Issue 1: has_referral=None ambiguity**
-- Current: `has_referral=False` → 'referral', but `has_referral=None` → can reach 'evaluation'
-- **Problem:** Unclear if patient needs referral or already has one
-- **Fix:** Require explicit `has_referral=True` to advance past referral stage
+**Issue 1: has_referral=None ambiguity** ✅ **FIXED**
+- Current: `has_referral is not True` (line 73) → 'referral' for both False and None
+- **Status:** Correctly requires explicit `has_referral=True` to advance past referral stage
 
 **Issue 2: Checklist auto-creation on GET**
-- Current: GET /checklist creates default checklist if none exists
-- **Problem:** Creates checklist even if patient hasn't completed questionnaire
-- **Fix:** Only auto-create if questionnaire exists
+- Current: GET /checklist creates default checklist if none exists (only if patient exists)
+- **Status:** Still auto-creates regardless of questionnaire status, but this is acceptable for demo flow
 
 **Issue 3: Pathway stage jumps**
-- Current: Can jump from 'identification' → 'evaluation' if checklist auto-created and items marked complete
-- **Problem:** Skips 'referral' stage in demo flow
-- **Fix:** Require explicit referral before evaluation
+- Current: Special case: `has_referral=True + no questionnaire` → 'evaluation' (line 63-64)
+- **Status:** This allows evaluation stage before questionnaire, which may be intentional for demo
 
 **Issue 4: 80% threshold is arbitrary**
-- Current: Hard-coded 0.8 threshold
-- **Problem:** Not clinically meaningful
-- **Fix:** Keep for demo, but document as "demo threshold"
+- Current: Hard-coded 0.8 threshold (line 93)
+- **Status:** Documented as demo threshold - acceptable for MVP
 
-**Issue 5: Multiple questionnaires with conflicting answers**
-- Current: ANY "yes" = permanent contraindication
-- **Problem:** Patient can't "clear" a contraindication by answering "no" later
-- **Fix:** Use most recent answer per question_id, or add explicit "cleared" mechanism
+**Issue 5: Multiple questionnaires with conflicting answers** ✅ **FIXED**
+- Current: Sorts by submitted_at descending, uses most recent answer per question_id
+- **Status:** Later "no" answers correctly clear earlier "yes" answers
 
-### Proposed Minimum Changes (Priority Order):
+### Implementation Status:
 
-#### Priority 1 (1-hour fixes - High Impact):
+#### ✅ Already Fixed (No Action Needed):
 
-1. **Fix has_referral=None ambiguity**
-   - File: `app/services/status_computation.py::determine_pathway_stage()`
-   - Change: Require `has_referral is True` (not just `not False`) to advance past referral
-   - Impact: More deterministic pathway progression
+1. **has_referral=None ambiguity** ✅
+   - File: `app/services/status_computation.py::determine_pathway_stage()` (line 73)
+   - Status: Code correctly checks `has_referral is not True` (handles both False and None)
 
-2. **Fix checklist.items=None crash risk**
-   - File: `app/services/status_computation.py::determine_pathway_stage()` (line 75)
-   - Change: Add `items = items or []` guard
-   - Impact: Prevents potential crash
+2. **checklist.items=None crash risk** ✅
+   - File: `app/services/status_computation.py::determine_pathway_stage()` (line 84)
+   - Status: Code has `items = items or []` guard
 
-#### Priority 2 (3-hour fixes - Medium Impact):
+3. **Conflicting questionnaire answers** ✅
+   - File: `app/services/status_computation.py::compute_patient_status_from_all_questionnaires()` (lines 180-203)
+   - Status: Code sorts by submitted_at descending and uses most recent answer per question_id
 
-3. **Fix conflicting questionnaire answers**
-   - File: `app/services/status_computation.py::compute_patient_status_from_all_questionnaires()`
-   - Change: Use most recent answer per question_id (sort by submitted_at)
-   - Impact: More realistic - later answers override earlier ones
+#### Optional Improvements (Low Priority):
 
-4. **Fix checklist auto-creation timing**
+4. **Checklist auto-creation timing**
    - File: `app/api/checklist.py::get_checklist()` (line 30-46)
-   - Change: Only auto-create if questionnaire exists
-   - Impact: Prevents premature checklist creation
+   - Current: Auto-creates if patient exists (regardless of questionnaire)
+   - Optional: Only auto-create if questionnaire exists
+   - Impact: Minor - current behavior acceptable for demo
 
-#### Priority 3 (Risky/Not Worth It):
+#### Not Recommended:
 
 5. **Add "transplantation" and "post-transplant" stages**
    - Not needed for demo - current stages sufficient
@@ -439,13 +471,23 @@ curl -X POST http://127.0.0.1:8000/api/v1/questionnaire \
 curl http://127.0.0.1:8000/api/v1/patient-status
 # Expected: HTTP 200, has_absolute=true, pathway_stage="referral"
 
-# 6. Update checklist item
+# 6. Submit third questionnaire (clearing the contraindication)
+curl -X POST http://127.0.0.1:8000/api/v1/questionnaire \
+  -H "Content-Type: application/json" \
+  -d '{"patient_id":"<PATIENT_ID>","answers":{"metastatic_cancer":"no"}}'
+# Expected: HTTP 200
+
+# 7. Get patient status (contraindication should be cleared - most recent answer wins)
+curl http://127.0.0.1:8000/api/v1/patient-status
+# Expected: HTTP 200, has_absolute=false (most recent "no" cleared earlier "yes")
+
+# 8. Update checklist item
 curl -X PATCH http://127.0.0.1:8000/api/v1/checklist/items/physical_exam \
   -H "Content-Type: application/json" \
   -d '{"is_complete":true}'
 # Expected: HTTP 200, Checklist with updated item
 
-# 7. Get patient status (pathway_stage may change)
+# 9. Get patient status (pathway_stage may change)
 curl http://127.0.0.1:8000/api/v1/patient-status
 # Expected: HTTP 200, pathway_stage="evaluation" or "selection" depending on completion
 ```
@@ -507,17 +549,21 @@ curl http://127.0.0.1:8000/api/v1/questionnaire
 1. ✅ Demo-safe fallbacks (questions.json missing → empty list)
 2. ✅ Deterministic pathway stage logic
 3. ✅ Proper error handling (404s, not 500s)
-4. ✅ Rollup logic correctly aggregates across questionnaires
+4. ✅ Rollup logic correctly aggregates across questionnaires using most recent answers
+5. ✅ Most recent answer wins - later "no" clears earlier "yes" contraindications
+6. ✅ Proper has_referral handling - requires explicit True to advance
+7. ✅ Checklist items=None guard prevents crashes
 
-### Critical Issues (Must Fix):
-1. **Conflicting questionnaire answers** - Later "no" doesn't clear earlier "yes"
-2. **has_referral=None ambiguity** - Can skip referral stage incorrectly
-3. **checklist.items=None crash risk** - Potential AttributeError
+### Critical Issues Status:
+1. ✅ **FIXED:** Conflicting questionnaire answers - Now uses most recent answer per question_id
+2. ✅ **FIXED:** has_referral=None ambiguity - Now correctly checks `is not True`
+3. ✅ **FIXED:** checklist.items=None crash risk - Now has guard clause
 
-### Recommended Fixes (Priority Order):
-1. **1-hour:** Fix has_referral logic, add items=None guard
-2. **3-hour:** Use most recent answer per question_id, fix checklist auto-creation timing
-3. **Skip:** Complex time-based logic, additional stages
+### Current Implementation Notes:
+- Questionnaire rollup uses most recent answer (sorted by submitted_at descending)
+- Pathway stage logic properly handles has_referral=None vs False vs True
+- Checklist completion threshold is 80% (hard-coded for demo)
+- Checklist auto-creates on patient creation and on GET if missing (acceptable for demo)
 
 ---
 
