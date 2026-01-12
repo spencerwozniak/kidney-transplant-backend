@@ -45,7 +45,7 @@ def get_default_model() -> str:
     Returns:
         Model name string
     """
-    return os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    return os.getenv("OPENAI_MODEL", "gpt-5.1")
 
 
 def is_ai_enabled() -> bool:

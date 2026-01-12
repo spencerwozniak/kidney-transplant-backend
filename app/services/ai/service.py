@@ -156,6 +156,7 @@ def build_patient_context(patient_id: str) -> Dict[str, Any]:
 def format_context_for_prompt(context: Dict[str, Any]) -> str:
     """
     Formats the patient context into a readable string for the AI prompt
+    Uses HTML-like tags to structure sections for better parsing
     
     Args:
         context: Patient context dictionary
@@ -163,7 +164,7 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
     Returns:
         Formatted string describing patient's current state
     """
-    lines = []
+    sections = []
     
     # Pathway Stage
     pathway_stage = context.get("pathway_stage")
@@ -177,63 +178,77 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
             "post-transplant": "Post-Transplant - Post-transplant care and monitoring"
         }
         stage_desc = stage_descriptions.get(pathway_stage, pathway_stage)
-        lines.append(f"**Current Pathway Stage**: {pathway_stage.upper()} - {stage_desc}")
+        pathway_content = f"{pathway_stage.upper()} - {stage_desc}"
+        sections.append(f"<pathway_stage>\n{pathway_content}\n</pathway_stage>")
     
     # Status Summary
     status = context.get("status_summary", {})
     if status:
-        lines.append("\n**Medical Status:**")
+        status_lines = []
         if status.get("has_absolute_contraindications"):
-            lines.append("- Has ABSOLUTE contraindications (these may prevent transplant):")
+            status_lines.append("Has ABSOLUTE contraindications (these may prevent transplant):")
             for contra in status.get("absolute_contraindications", []):
-                lines.append(f"  • {contra.get('question')}")
+                status_lines.append(f"  • {contra.get('question')}")
         else:
-            lines.append("- No absolute contraindications identified")
+            status_lines.append("No absolute contraindications identified")
         
         if status.get("has_relative_contraindications"):
-            lines.append("- Has RELATIVE contraindications (these may need to be addressed):")
+            status_lines.append("\nHas RELATIVE contraindications (these may need to be addressed):")
             for contra in status.get("relative_contraindications", []):
-                lines.append(f"  • {contra.get('question')}")
+                status_lines.append(f"  • {contra.get('question')}")
         else:
-            lines.append("- No relative contraindications identified")
+            status_lines.append("No relative contraindications identified")
+        
+        if status_lines:
+            sections.append(f"<medical_status>\n" + "\n".join(status_lines) + "\n</medical_status>")
     
     # Checklist Progress
     checklist = context.get("checklist_progress", {})
     if checklist and checklist.get("total_items", 0) > 0:
-        lines.append(f"\n**Checklist Progress**: {checklist.get('completed_count')}/{checklist.get('total_items')} items complete ({checklist.get('completion_percentage')}%)")
+        checklist_lines = []
+        checklist_lines.append(f"Progress: {checklist.get('completed_count')}/{checklist.get('total_items')} items complete ({checklist.get('completion_percentage')}%)")
         
         incomplete = checklist.get("incomplete_items", [])
         if incomplete:
-            lines.append("\n**Next Items to Complete:**")
+            checklist_lines.append("\nNext Items to Complete:")
             for item in incomplete[:3]:  # Top 3 next items
-                lines.append(f"  • {item.get('title')}")
+                checklist_lines.append(f"  • {item.get('title')}")
                 if item.get('description'):
-                    lines.append(f"    ({item.get('description')})")
+                    checklist_lines.append(f"    ({item.get('description')})")
+        
+        sections.append(f"<checklist_progress>\n" + "\n".join(checklist_lines) + "\n</checklist_progress>")
     
     # Referral Information
     referral = context.get("referral_information", {})
     if referral:
-        lines.append("\n**Referral Status:**")
+        referral_lines = []
         if referral.get("has_referral"):
-            lines.append("- Has referral to transplant center")
+            referral_lines.append("Has referral to transplant center")
         else:
-            lines.append("- Does NOT have referral yet")
+            referral_lines.append("Does NOT have referral yet")
         
         referral_status = referral.get("referral_status", "not_started")
         if referral_status != "not_started":
-            lines.append(f"- Referral process: {referral_status}")
+            referral_lines.append(f"Referral process: {referral_status}")
         
         if referral.get("has_nephrologist"):
-            lines.append("- Has a nephrologist who can provide referral")
+            referral_lines.append("Has a nephrologist who can provide referral")
         if referral.get("has_dialysis_center"):
-            lines.append("- Has a dialysis center that can assist with referral")
+            referral_lines.append("Has a dialysis center that can assist with referral")
+        
+        sections.append(f"<referral_status>\n" + "\n".join(referral_lines) + "\n</referral_status>")
     
     # Recent Activity
     activity = context.get("recent_activity", {})
     if activity.get("last_item"):
-        lines.append(f"\n**Recent Activity**: Last completed item: {activity.get('last_item')}")
+        activity_lines = [f"Last completed item: {activity.get('last_item')}"]
+        if activity.get("last_activity_date"):
+            activity_lines.append(f"Date: {activity.get('last_activity_date')}")
+        if activity.get("last_questionnaire_date"):
+            activity_lines.append(f"Last questionnaire submitted: {activity.get('last_questionnaire_date')}")
+        sections.append(f"<recent_activity>\n" + "\n".join(activity_lines) + "\n</recent_activity>")
     
-    return "\n".join(lines)
+    return "\n\n".join(sections)
 
 
 def build_system_prompt() -> str:
@@ -271,13 +286,18 @@ def build_user_prompt(user_query: str, context: Dict[str, Any]) -> str:
     """
     context_str = format_context_for_prompt(context)
     
-    prompt = f"""Patient Context:
+    prompt = f"""<patient_context>
 {context_str}
+</patient_context>
 
-Patient Question: {user_query}
+<patient_question>
+{user_query}
+</patient_question>
 
+<instructions>
 Please provide a helpful, personalized response to the patient's question using their context. 
-Be specific about their current stage and what they need to do next. Remember: you are not providing medical advice."""
+Be specific about their current stage and what they need to do next. Remember: you are not providing medical advice.
+</instructions>"""
     
     return prompt
 
