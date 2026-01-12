@@ -1,0 +1,80 @@
+[
+  {
+    "id": "metastatic_cancer",
+    "category": "absolute",
+    "question": "Do you have metastatic cancer?",
+    "description": "Metastatic cancer is typically an absolute contraindication for kidney transplantation"
+  },
+  {
+    "id": "decompensated_cirrhosis",
+    "category": "absolute",
+    "question": "Do you have decompensated cirrhosis?",
+    "description": "Decompensated cirrhosis is typically an absolute contraindication"
+  },
+  {
+    "id": "severe_lung_disease",
+    "category": "absolute",
+    "question": "Do you have severe lung disease?",
+    "description": "Severe lung disease may be an absolute contraindication depending on severity"
+  },
+  {
+    "id": "severe_cardiac_disease",
+    "category": "absolute",
+    "question": "Do you have severe cardiac disease?",
+    "description": "Severe cardiac disease may be an absolute contraindication depending on severity"
+  },
+  {
+    "id": "neurodegenerative",
+    "category": "relative",
+    "question": "Do you have a neurodegenerative condition?",
+    "description": "Neurodegenerative conditions may be relative contraindications"
+  },
+  {
+    "id": "non_compliance",
+    "category": "relative",
+    "question": "Have you had issues with medication non-compliance?",
+    "description": "History of non-compliance is a relative contraindication"
+  },
+  {
+    "id": "psychiatric",
+    "category": "relative",
+    "question": "Do you have significant psychiatric conditions?",
+    "description": "Significant psychiatric conditions may be relative contraindications"
+  },
+  {
+    "id": "substance_use",
+    "category": "relative",
+    "question": "Do you have active substance use issues?",
+    "description": "Active substance use is a relative contraindication"
+  },
+  {
+    "id": "severe_obesity",
+    "category": "relative",
+    "question": "Do you have severe obesity (BMI > 40)?",
+    "description": "Severe obesity is a relative contraindication"
+  },
+  {
+    "id": "social_support",
+    "category": "relative",
+    "question": "Do you lack adequate social support?",
+    "description": "Lack of adequate social support is a relative contraindication"
+  },
+  {
+    "id": "symptomatic_cardiac",
+    "category": "relative",
+    "question": "Do you have symptomatic cardiac disease?",
+    "description": "Symptomatic cardiac disease is a relative contraindication"
+  },
+  {
+    "id": "recent_stroke",
+    "category": "relative",
+    "question": "Have you had a recent stroke?",
+    "description": "Recent stroke is a relative contraindication"
+  },
+  {
+    "id": "age_concern",
+    "category": "relative",
+    "question": "Are there age-related concerns?",
+    "description": "Advanced age may be a relative contraindication depending on overall health"
+  }
+]

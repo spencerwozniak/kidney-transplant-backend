@@ -38,8 +38,10 @@ ENV/
 .env.local
 
 # Data files (JSON databases)
-data/
+data/*
+!data/questions.json
 *.json
+!data/questions.json
 
 # Logs
 *.log

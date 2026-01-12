@@ -6,6 +6,7 @@ Computes patient transplant status from questionnaire answers
 import json
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+from datetime import datetime
 
 from app.models.schemas import PatientStatus, Contraindication
 from app.core import database
@@ -16,6 +17,7 @@ def load_questions() -> List[Dict[str, Any]]:
     Load questions from JSON file
     
     Returns list of question dictionaries with id, category, question, description
+    If file doesn't exist or is invalid, returns empty list (demo-safe fallback)
     """
     questions_path = Path("data/questions.json")
     questions_path.parent.mkdir(parents=True, exist_ok=True)
@@ -23,7 +25,8 @@ def load_questions() -> List[Dict[str, Any]]:
         with open(questions_path, 'r') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        raise RuntimeError(f"Failed to load questions: {e}")
+        print(f"WARNING: Failed to load questions.json: {e}. Returning empty list (demo-safe fallback).")
+        return []
 
 
 def determine_pathway_stage(
@@ -65,8 +68,9 @@ def determine_pathway_stage(
         return 'identification'
     
     # Stage 2: Referral - Patient does not have a referral yet
-    # If has_referral is False, they're in referral stage (need to get referred)
-    if has_referral is False:
+    # Only advance past referral stage if has_referral is explicitly True
+    # If has_referral is False or None, they're in referral stage (need to get referred)
+    if has_referral is not True:
         return 'referral'
     
     # Stage 2: Referral - Questionnaire completed but no checklist yet
@@ -74,9 +78,10 @@ def determine_pathway_stage(
         return 'referral'
     
     # Stage 3: Evaluation - Checklist exists and has incomplete items
-    # Only reach evaluation if they have a referral (has_referral is True or None/not set)
+    # Only reach evaluation if they have a referral (has_referral is explicitly True)
     if checklist:
         items = checklist.get('items', [])
+        items = items or []  # Guard against None
         if not items:
             return 'referral'
         
@@ -134,6 +139,102 @@ def compute_patient_status(answers: Dict[str, str], patient_id: str) -> PatientS
     
     # Determine pathway stage
     # Questionnaire exists (we're computing status from it), so has_questionnaire = True
+    checklist = database.get_checklist()
+    patient = database.get_patient()
+    pathway_stage = determine_pathway_stage(has_questionnaire=True, checklist=checklist, patient=patient)
+    
+    # Create status
+    status = PatientStatus(
+        patient_id=patient_id,
+        has_absolute=len(absolute_contraindications) > 0,
+        has_relative=len(relative_contraindications) > 0,
+        absolute_contraindications=absolute_contraindications,
+        relative_contraindications=relative_contraindications,
+        pathway_stage=pathway_stage,
+    )
+    
+    return status
+
+def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientStatus:
+    """
+    Compute patient status by rolling up all questionnaires for a patient
+    
+    Args:
+        patient_id: Patient ID to compute status for
+    
+    Returns:
+        PatientStatus object with computed contraindications across all questionnaires
+        - Deduplicates contraindications by question_id
+        - has_absolute = True if any absolute contraindication found across all questionnaires
+        - has_relative = True if any relative contraindication found across all questionnaires
+    """
+    # Get all questionnaires for this patient
+    questionnaires = database.get_all_questionnaires_for_patient(patient_id)
+    
+    if not questionnaires:
+        # No questionnaires - can't compute status
+        raise ValueError(f"No questionnaires found for patient {patient_id}")
+    
+    questions = load_questions()
+    
+    # Sort questionnaires by submitted_at descending (most recent first)
+    # Questionnaires without submitted_at are treated as oldest (sorted last)
+    def get_sort_key(q: Dict[str, Any]) -> str:
+        submitted_at = q.get('submitted_at')
+        if submitted_at is None:
+            return '0000-00-00T00:00:00'  # Oldest if missing
+        if isinstance(submitted_at, str):
+            return submitted_at
+        # If it's a datetime object, convert to ISO string
+        if hasattr(submitted_at, 'isoformat'):
+            return submitted_at.isoformat()
+        return str(submitted_at)
+    
+    questionnaires_sorted = sorted(questionnaires, key=get_sort_key, reverse=True)
+    
+    # Build latest_answers dict: process questionnaires from newest to oldest
+    # Latest answer wins (overwrites earlier answers)
+    latest_answers = {}  # question_id -> answer
+    for questionnaire in questionnaires_sorted:
+        answers = questionnaire.get('answers', {})
+        for question_id, answer in answers.items():
+            # Only set if not already set (newest wins)
+            if question_id not in latest_answers:
+                latest_answers[question_id] = answer
+    
+    # Collect contraindications from latest answers only
+    absolute_contraindications_dict = {}  # question_id -> Contraindication
+    relative_contraindications_dict = {}  # question_id -> Contraindication
+    
+    # Only process contraindications if questions list is not empty
+    if questions:
+        # Build a map of question_id -> question dict for quick lookup
+        question_map = {q['id']: q for q in questions}
+        
+        # Process latest answers (only 'yes' answers create contraindications)
+        for question_id, answer in latest_answers.items():
+            if answer == 'yes':
+                question_info = question_map.get(question_id)
+                if question_info:
+                    category = question_info.get('category')
+                    
+                    if category == 'absolute':
+                        absolute_contraindications_dict[question_id] = Contraindication(
+                            id=question_id,
+                            question=question_info['question']
+                        )
+                    elif category == 'relative':
+                        relative_contraindications_dict[question_id] = Contraindication(
+                            id=question_id,
+                            question=question_info['question']
+                        )
+    
+    # Convert dictionaries to lists
+    absolute_contraindications = list(absolute_contraindications_dict.values())
+    relative_contraindications = list(relative_contraindications_dict.values())
+    
+    # Determine pathway stage
+    # Questionnaires exist, so has_questionnaire = True
     checklist = database.get_checklist()
     patient = database.get_patient()
     pathway_stage = determine_pathway_stage(has_questionnaire=True, checklist=checklist, patient=patient)

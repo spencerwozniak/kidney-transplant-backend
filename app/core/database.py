@@ -91,6 +91,29 @@ def get_questionnaire() -> Optional[Dict[str, Any]]:
     return patient_questionnaires[-1]
 
 
+def get_all_questionnaires_for_patient(patient_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all questionnaires for a specific patient
+    
+    Args:
+        patient_id: Patient ID to filter questionnaires by
+    
+    Returns:
+        List of all questionnaire dictionaries for the patient (ordered by submission time)
+    """
+    questionnaires = read_json("data/questionnaire.json")
+    if not questionnaires:
+        return []
+    
+    # Filter questionnaires by patient_id
+    patient_questionnaires = [
+        q for q in questionnaires 
+        if q.get('patient_id') == patient_id
+    ]
+    
+    return patient_questionnaires
+
+
 def save_checklist(checklist: Dict[str, Any]):
     """
     Save checklist (replace existing for demo)
