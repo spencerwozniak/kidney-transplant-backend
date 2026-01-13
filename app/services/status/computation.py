@@ -102,13 +102,14 @@ def determine_pathway_stage(
     return 'referral'
 
 
-def compute_patient_status(answers: Dict[str, str], patient_id: str) -> PatientStatus:
+def compute_patient_status(answers: Dict[str, str], patient_id: str, device_id: str) -> PatientStatus:
     """
     Compute patient status from questionnaire answers
     
     Args:
         answers: Dictionary mapping question_id to 'yes' or 'no'
         patient_id: Patient ID this status is associated with
+        device_id: Device ID to get patient/checklist data
     
     Returns:
         PatientStatus object with computed contraindications and pathway stage
@@ -139,8 +140,8 @@ def compute_patient_status(answers: Dict[str, str], patient_id: str) -> PatientS
     
     # Determine pathway stage
     # Questionnaire exists (we're computing status from it), so has_questionnaire = True
-    checklist = database.get_checklist()
-    patient = database.get_patient()
+    checklist = database.get_checklist(device_id)
+    patient = database.get_patient(device_id)
     pathway_stage = determine_pathway_stage(has_questionnaire=True, checklist=checklist, patient=patient)
     
     # Create status
@@ -155,7 +156,7 @@ def compute_patient_status(answers: Dict[str, str], patient_id: str) -> PatientS
     
     return status
 
-def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientStatus:
+def compute_patient_status_from_all_questionnaires(patient_id: str, device_id: str) -> PatientStatus:
     """
     Compute patient status by rolling up all questionnaires for a patient
     
@@ -163,6 +164,7 @@ def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientSt
     
     Args:
         patient_id: Patient ID to compute status for
+        device_id: Device ID to get questionnaires/patient/checklist data
     
     Returns:
         PatientStatus object with computed contraindications across all questionnaires
@@ -172,11 +174,11 @@ def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientSt
         - If no questionnaires exist, returns initial status with no contraindications
     """
     # Get all questionnaires for this patient
-    questionnaires = database.get_all_questionnaires_for_patient(patient_id)
+    questionnaires = database.get_all_questionnaires_for_patient(patient_id, device_id)
     
     if not questionnaires:
         # No questionnaires - return initial status based on patient data
-        return create_initial_status(patient_id)
+        return create_initial_status(patient_id, device_id)
     
     questions = load_questions()
     
@@ -238,8 +240,8 @@ def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientSt
     
     # Determine pathway stage
     # Questionnaires exist, so has_questionnaire = True
-    checklist = database.get_checklist()
-    patient = database.get_patient()
+    checklist = database.get_checklist(device_id)
+    patient = database.get_patient(device_id)
     pathway_stage = determine_pathway_stage(has_questionnaire=True, checklist=checklist, patient=patient)
     
     # Create status
@@ -255,7 +257,7 @@ def compute_patient_status_from_all_questionnaires(patient_id: str) -> PatientSt
     return status
 
 
-def create_initial_status(patient_id: str) -> PatientStatus:
+def create_initial_status(patient_id: str, device_id: str) -> PatientStatus:
     """
     Create initial patient status when no questionnaire exists yet
     
@@ -264,13 +266,14 @@ def create_initial_status(patient_id: str) -> PatientStatus:
     
     Args:
         patient_id: Patient ID this status is associated with
+        device_id: Device ID to get patient/checklist data
     
     Returns:
         PatientStatus object with initial pathway stage (no contraindications yet)
     """
     # Get patient data to determine initial stage
-    patient = database.get_patient()
-    checklist = database.get_checklist()
+    patient = database.get_patient(device_id)
+    checklist = database.get_checklist(device_id)
     
     # Determine pathway stage (no questionnaire yet)
     pathway_stage = determine_pathway_stage(has_questionnaire=False, checklist=checklist, patient=patient)
@@ -288,7 +291,7 @@ def create_initial_status(patient_id: str) -> PatientStatus:
     return status
 
 
-def recompute_pathway_stage(status: PatientStatus) -> PatientStatus:
+def recompute_pathway_stage(status: PatientStatus, device_id: str) -> PatientStatus:
     """
     Recompute pathway stage for an existing status
     
@@ -296,6 +299,7 @@ def recompute_pathway_stage(status: PatientStatus) -> PatientStatus:
     
     Args:
         status: Existing PatientStatus object
+        device_id: Device ID to get patient/checklist data
     
     Returns:
         PatientStatus with updated pathway_stage
@@ -304,8 +308,8 @@ def recompute_pathway_stage(status: PatientStatus) -> PatientStatus:
     has_questionnaire = True  # If status exists, questionnaire was completed
     
     # Get current checklist and patient data
-    checklist = database.get_checklist()
-    patient = database.get_patient()
+    checklist = database.get_checklist(device_id)
+    patient = database.get_patient(device_id)
     
     # Determine pathway stage
     pathway_stage = determine_pathway_stage(has_questionnaire=has_questionnaire, checklist=checklist, patient=patient)

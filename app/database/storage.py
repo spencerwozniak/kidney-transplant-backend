@@ -35,45 +35,46 @@ def write_json(filepath: str, data: List[Dict[str, Any]]):
 
 
 # Simple storage functions
-def save_patient(patient: Dict[str, Any]):
+def save_patient(patient: Dict[str, Any], device_id: str):
     """
-    Save patient (replace existing for demo)
-    CURRENT: Single patient assumption, overwrites existing
+    Save patient for a specific device
+    Stores patients by device_id in separate files
     """
-    write_json("data/patient.json", [patient])
+    # Store patient in device-specific file
+    filepath = f"data/patients/{device_id}.json"
+    write_json(filepath, [patient])
 
 
-def get_patient() -> Optional[Dict[str, Any]]:
+def get_patient(device_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get patient (demo: only one)
-    CURRENT: Single patient assumption, no ID needed
+    Get patient for a specific device
     """
-    patients = read_json("data/patient.json")
+    filepath = f"data/patients/{device_id}.json"
+    patients = read_json(filepath)
     return patients[0] if patients else None
 
 
-def save_questionnaire(questionnaire: Dict[str, Any]):
+def save_questionnaire(questionnaire: Dict[str, Any], device_id: str):
     """
-    Save questionnaire
-    
-    CURRENT: Single patient assumption
+    Save questionnaire for a specific device
     """
-    data = read_json("data/questionnaire.json")
+    filepath = f"data/questionnaires/{device_id}.json"
+    data = read_json(filepath)
     data.append(questionnaire)
-    write_json("data/questionnaire.json", data)
+    write_json(filepath, data)
 
 
-def get_questionnaire() -> Optional[Dict[str, Any]]:
+def get_questionnaire(device_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get questionnaire (demo: most recent for current patient)
-    CURRENT: Single patient assumption, returns most recent questionnaire
+    Get questionnaire (most recent for device's patient)
     """
-    questionnaires = read_json("data/questionnaire.json")
+    filepath = f"data/questionnaires/{device_id}.json"
+    questionnaires = read_json(filepath)
     if not questionnaires:
         return None
     
-    # Get current patient
-    patient = get_patient()
+    # Get current patient for this device
+    patient = get_patient(device_id)
     if not patient:
         return None
     
@@ -91,17 +92,19 @@ def get_questionnaire() -> Optional[Dict[str, Any]]:
     return patient_questionnaires[-1]
 
 
-def get_all_questionnaires_for_patient(patient_id: str) -> List[Dict[str, Any]]:
+def get_all_questionnaires_for_patient(patient_id: str, device_id: str) -> List[Dict[str, Any]]:
     """
     Get all questionnaires for a specific patient
     
     Args:
         patient_id: Patient ID to filter questionnaires by
+        device_id: Device ID to get questionnaires from
     
     Returns:
         List of all questionnaire dictionaries for the patient (ordered by submission time)
     """
-    questionnaires = read_json("data/questionnaire.json")
+    filepath = f"data/questionnaires/{device_id}.json"
+    questionnaires = read_json(filepath)
     if not questionnaires:
         return []
     
@@ -114,88 +117,87 @@ def get_all_questionnaires_for_patient(patient_id: str) -> List[Dict[str, Any]]:
     return patient_questionnaires
 
 
-def save_checklist(checklist: Dict[str, Any]):
+def save_checklist(checklist: Dict[str, Any], device_id: str):
     """
-    Save checklist (replace existing for demo)
-    CURRENT: Single patient assumption, overwrites existing
+    Save checklist for a specific device
     """
-    write_json("data/checklist.json", [checklist])
+    filepath = f"data/checklists/{device_id}.json"
+    write_json(filepath, [checklist])
 
 
-def get_checklist() -> Optional[Dict[str, Any]]:
+def get_checklist(device_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get checklist (demo: only one)
-    CURRENT: Single patient assumption, no ID needed
+    Get checklist for a specific device
     """
-    checklists = read_json("data/checklist.json")
+    filepath = f"data/checklists/{device_id}.json"
+    checklists = read_json(filepath)
     return checklists[0] if checklists else None
 
 
-def save_patient_status(status: Dict[str, Any]):
+def save_patient_status(status: Dict[str, Any], device_id: str):
     """
-    Save patient status (replace existing for demo)
-    CURRENT: Single patient assumption, overwrites existing
+    Save patient status for a specific device
     """
-    write_json("data/patient_status.json", [status])
+    filepath = f"data/patient_status/{device_id}.json"
+    write_json(filepath, [status])
 
 
-def get_patient_status() -> Optional[Dict[str, Any]]:
+def get_patient_status(device_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get patient status (demo: only one)
-    CURRENT: Single patient assumption, no ID needed
+    Get patient status for a specific device
     """
-    statuses = read_json("data/patient_status.json")
+    filepath = f"data/patient_status/{device_id}.json"
+    statuses = read_json(filepath)
     return statuses[0] if statuses else None
 
 
-def save_financial_profile(profile: Dict[str, Any]):
+def save_financial_profile(profile: Dict[str, Any], device_id: str):
     """
-    Save financial profile (replace existing for demo)
-    CURRENT: Single patient assumption, overwrites existing
+    Save financial profile for a specific device
     """
-    write_json("data/financial_profile.json", [profile])
+    filepath = f"data/financial_profiles/{device_id}.json"
+    write_json(filepath, [profile])
 
 
-def get_financial_profile() -> Optional[Dict[str, Any]]:
+def get_financial_profile(device_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get financial profile (demo: only one)
-    CURRENT: Single patient assumption, no ID needed
+    Get financial profile for a specific device
     """
-    profiles = read_json("data/financial_profile.json")
+    filepath = f"data/financial_profiles/{device_id}.json"
+    profiles = read_json(filepath)
     return profiles[0] if profiles else None
 
 
-def delete_patient():
+def delete_patient(device_id: str):
     """
-    Delete patient and all associated records (demo: only one)
-    CURRENT: Single patient assumption, deletes patient.json file and all associated data
+    Delete patient and all associated records for a specific device
     """
     # Get patient ID before deleting patient data
-    patient = get_patient()
+    patient = get_patient(device_id)
     patient_id = patient.get('id') if patient else None
     
     # Delete patient data file
-    path = Path("data/patient.json")
+    path = Path(f"data/patients/{device_id}.json")
     if path.exists():
         path.unlink()
     
-    # Delete questionnaire data associated with patient
-    questionnaire_path = Path("data/questionnaire.json")
+    # Delete questionnaire data associated with device
+    questionnaire_path = Path(f"data/questionnaires/{device_id}.json")
     if questionnaire_path.exists():
         questionnaire_path.unlink()
     
-    # Delete checklist data associated with patient
-    checklist_path = Path("data/checklist.json")
+    # Delete checklist data associated with device
+    checklist_path = Path(f"data/checklists/{device_id}.json")
     if checklist_path.exists():
         checklist_path.unlink()
     
     # Delete patient status data
-    status_path = Path("data/patient_status.json")
+    status_path = Path(f"data/patient_status/{device_id}.json")
     if status_path.exists():
         status_path.unlink()
     
     # Delete financial profile data
-    financial_profile_path = Path("data/financial_profile.json")
+    financial_profile_path = Path(f"data/financial_profiles/{device_id}.json")
     if financial_profile_path.exists():
         financial_profile_path.unlink()
     
@@ -206,24 +208,24 @@ def delete_patient():
             shutil.rmtree(documents_dir)
     
     # Delete patient referral state
-    referral_state_path = Path("data/patient_referral_state.json")
+    referral_state_path = Path(f"data/patient_referral_states/{device_id}.json")
     if referral_state_path.exists():
         referral_state_path.unlink()
 
 
-def save_patient_referral_state(state: Dict[str, Any]):
+def save_patient_referral_state(state: Dict[str, Any], device_id: str):
     """
-    Save patient referral state (replace existing for demo)
-    CURRENT: Single patient assumption, overwrites existing
+    Save patient referral state for a specific device
     """
-    write_json("data/patient_referral_state.json", [state])
+    filepath = f"data/patient_referral_states/{device_id}.json"
+    write_json(filepath, [state])
 
 
-def get_patient_referral_state() -> Optional[Dict[str, Any]]:
+def get_patient_referral_state(device_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get patient referral state (demo: only one)
-    CURRENT: Single patient assumption, no ID needed
+    Get patient referral state for a specific device
     """
-    states = read_json("data/patient_referral_state.json")
+    filepath = f"data/patient_referral_states/{device_id}.json"
+    states = read_json(filepath)
     return states[0] if states else None
 

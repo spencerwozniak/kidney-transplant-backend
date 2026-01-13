@@ -13,44 +13,45 @@ from app.database import storage as database
 from app.database.schemas import PatientStatus
 
 
-def build_patient_context(patient_id: str) -> Dict[str, Any]:
+def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
     """
     Aggregates all patient data into a structured context for AI prompts
     
     Args:
         patient_id: Patient ID to build context for
+        device_id: Device ID to get patient data
     
     Returns:
         Dictionary containing structured patient context
     """
     # Fetch all data sources with error handling
     try:
-        patient = database.get_patient()
+        patient = database.get_patient(device_id)
     except Exception:
         patient = None
     
     try:
-        status_data = database.get_patient_status()
+        status_data = database.get_patient_status(device_id)
     except Exception:
         status_data = None
     
     try:
-        checklist_data = database.get_checklist()
+        checklist_data = database.get_checklist(device_id)
     except Exception:
         checklist_data = None
     
     try:
-        questionnaires = database.get_all_questionnaires_for_patient(patient_id)
+        questionnaires = database.get_all_questionnaires_for_patient(patient_id, device_id)
     except Exception:
         questionnaires = None
     
     try:
-        financial_profile = database.get_financial_profile()
+        financial_profile = database.get_financial_profile(device_id)
     except Exception:
         financial_profile = None
     
     try:
-        referral_state = database.get_patient_referral_state()
+        referral_state = database.get_patient_referral_state(device_id)
     except Exception:
         referral_state = None
     
@@ -562,13 +563,14 @@ async def call_llm_stream(system_prompt: str, user_prompt: str, provider: str = 
         raise NotImplementedError(f"Provider '{provider}' not implemented")
 
 
-def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-5.1") -> str:
+def get_ai_response(patient_id: str, user_query: str, device_id: str, provider: str = "openai", model: str = "gpt-5.1") -> str:
     """
     Main function to get AI response for a patient query
     
     Args:
         patient_id: Patient ID
         user_query: Patient's question
+        device_id: Device ID to get patient data
         provider: LLM provider to use
         model: Model name to use
     
@@ -576,7 +578,7 @@ def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", 
         AI response string
     """
     # Build patient context
-    context = build_patient_context(patient_id)
+    context = build_patient_context(patient_id, device_id)
     
     # Build prompts
     system_prompt = build_system_prompt()
@@ -588,13 +590,14 @@ def get_ai_response(patient_id: str, user_query: str, provider: str = "openai", 
     return response
 
 
-async def get_ai_response_stream(patient_id: str, user_query: str, provider: str = "openai", model: str = "gpt-5.1"):
+async def get_ai_response_stream(patient_id: str, user_query: str, device_id: str, provider: str = "openai", model: str = "gpt-5.1"):
     """
     Main function to get streaming AI response for a patient query (async)
     
     Args:
         patient_id: Patient ID
         user_query: Patient's question
+        device_id: Device ID to get patient data
         provider: LLM provider to use
         model: Model name to use
     
@@ -602,7 +605,7 @@ async def get_ai_response_stream(patient_id: str, user_query: str, provider: str
         Text chunks as they are generated
     """
     # Build patient context
-    context = build_patient_context(patient_id)
+    context = build_patient_context(patient_id, device_id)
     
     # Build prompts
     system_prompt = build_system_prompt()

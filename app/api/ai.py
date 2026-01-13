@@ -4,7 +4,7 @@ AI Assistant API endpoints
 Provides chat/query interface for AI assistant to answer questions
 about patient's transplant journey.
 """
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -13,6 +13,7 @@ import json
 from app.database import storage as database
 from app.services.ai.service import get_ai_response, get_ai_response_stream, build_patient_context
 from app.services.ai.config import is_ai_enabled
+from app.api.utils import get_device_id
 
 
 router = APIRouter()
@@ -32,7 +33,7 @@ class AIQueryResponse(BaseModel):
 
 
 @router.post("/ai-assistant/query", response_model=AIQueryResponse)
-async def query_ai_assistant(request: AIQueryRequest):
+async def query_ai_assistant(request_body: AIQueryRequest, request: Request):
     """
     Query the AI assistant about patient's transplant journey
     
@@ -42,9 +43,8 @@ async def query_ai_assistant(request: AIQueryRequest):
     - Contraindications and status
     - Referral information
     - General questions about transplant journey
-    
-    CURRENT: Single patient assumption, uses current patient's data
     """
+    device_id = get_device_id(request)
     # Check if AI is enabled
     if not is_ai_enabled():
         raise HTTPException(
@@ -53,7 +53,7 @@ async def query_ai_assistant(request: AIQueryRequest):
         )
     
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
@@ -63,13 +63,14 @@ async def query_ai_assistant(request: AIQueryRequest):
         # Get AI response
         response = get_ai_response(
             patient_id=patient_id,
-            user_query=request.query,
-            provider=request.provider or "openai",
-            model=request.model or "gpt-5.1"
+            user_query=request_body.query,
+            device_id=device_id,
+            provider=request_body.provider or "openai",
+            model=request_body.model or "gpt-5.1"
         )
         
         # Build context summary for response (simplified version)
-        context = build_patient_context(patient_id)
+        context = build_patient_context(patient_id, device_id)
         context_summary = {
             "pathway_stage": context.get("pathway_stage"),
             "checklist_completion": context.get("checklist_progress", {}).get("completion_percentage"),
@@ -97,22 +98,22 @@ async def query_ai_assistant(request: AIQueryRequest):
 
 
 @router.get("/ai-assistant/context")
-async def get_ai_context():
+async def get_ai_context(request: Request):
     """
     Get the patient context that would be used for AI prompts
     
     Useful for debugging or understanding what data the AI has access to.
-    CURRENT: Single patient assumption
     """
+    device_id = get_device_id(request)
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
     patient_id = patient.get('id')
     
     # Build and return context
-    context = build_patient_context(patient_id)
+    context = build_patient_context(patient_id, device_id)
     
     return {
         "patient_id": patient_id,
@@ -121,13 +122,14 @@ async def get_ai_context():
 
 
 @router.post("/ai-assistant/query/stream")
-async def query_ai_assistant_stream(request: AIQueryRequest):
+async def query_ai_assistant_stream(request_body: AIQueryRequest, request: Request):
     """
     Query the AI assistant with streaming response
     
     Returns a streaming response where text chunks are sent as they are generated.
     Each chunk is sent as a JSON line: {"chunk": "text chunk"}
     """
+    device_id = get_device_id(request)
     # Check if AI is enabled
     if not is_ai_enabled():
         raise HTTPException(
@@ -136,7 +138,7 @@ async def query_ai_assistant_stream(request: AIQueryRequest):
         )
     
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
@@ -144,14 +146,15 @@ async def query_ai_assistant_stream(request: AIQueryRequest):
     
     async def generate():
         try:
-            print(f"[AI Stream] Starting stream for query: {request.query[:50]}...")
+            print(f"[AI Stream] Starting stream for query: {request_body.query[:50]}...")
             chunk_count = 0
             # Stream AI response (async for proper event loop yielding)
             async for chunk in get_ai_response_stream(
                 patient_id=patient_id,
-                user_query=request.query,
-                provider=request.provider or "openai",
-                model=request.model or "gpt-5.1"
+                user_query=request_body.query,
+                device_id=device_id,
+                provider=request_body.provider or "openai",
+                model=request_body.model or "gpt-5.1"
             ):
                 chunk_count += 1
                 # Send each chunk as JSON

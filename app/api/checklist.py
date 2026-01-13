@@ -1,7 +1,7 @@
 """
 Checklist management endpoints
 """
-from fastapi import APIRouter, HTTPException, Body, UploadFile, File
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Request
 from fastapi.responses import FileResponse
 import uuid
 from datetime import datetime
@@ -14,22 +14,23 @@ from app.database import storage as database
 from app.services.checklist.initialization import create_default_checklist
 from app.services.utils import convert_checklist_datetimes, convert_datetime_to_iso
 from app.services.status.computation import recompute_pathway_stage
+from app.api.utils import get_device_id
 
 router = APIRouter()
 
 
 @router.get("/checklist", response_model=TransplantChecklist)
-async def get_checklist():
+async def get_checklist(request: Request):
     """
-    Get checklist for current patient
+    Get checklist for device's patient
     
-    CURRENT: Returns single checklist (no ID needed)
     If no checklist exists, creates default one for current patient
     """
-    checklist = database.get_checklist()
+    device_id = get_device_id(request)
+    checklist = database.get_checklist(device_id)
     if not checklist:
         # Get patient to create checklist for
-        patient = database.get_patient()
+        patient = database.get_patient(device_id)
         if not patient:
             raise HTTPException(status_code=404, detail="No patient found")
         
@@ -41,7 +42,7 @@ async def get_checklist():
         checklist_data = convert_checklist_datetimes(new_checklist.model_dump())
         
         # Save checklist
-        database.save_checklist(checklist_data)
+        database.save_checklist(checklist_data, device_id)
         
         return new_checklist
     
@@ -49,18 +50,19 @@ async def get_checklist():
 
 
 @router.post("/checklist", response_model=TransplantChecklist)
-async def create_or_update_checklist(checklist: TransplantChecklist):
+async def create_or_update_checklist(checklist: TransplantChecklist, request: Request):
     """
     Create or update checklist
     
-    CURRENT: Single patient, generates UUID if needed, saves directly
+    Generates UUID if needed, saves directly
     """
+    device_id = get_device_id(request)
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    # Verify patient_id matches current patient (for single patient demo)
+    # Verify patient_id matches current patient
     if checklist.patient_id != patient.get('id'):
         raise HTTPException(status_code=400, detail="Patient ID does not match current patient")
     
@@ -72,7 +74,7 @@ async def create_or_update_checklist(checklist: TransplantChecklist):
     data = convert_checklist_datetimes(checklist.model_dump())
     
     # Save to database
-    database.save_checklist(data)
+    database.save_checklist(data, device_id)
     
     # Return the checklist with generated ID
     return checklist
@@ -82,19 +84,21 @@ async def create_or_update_checklist(checklist: TransplantChecklist):
 async def update_checklist_item(
     item_id: str,
     update_data: dict = Body(...),
+    request: Request = ...,
 ):
     """
     Update a specific checklist item
     
-    CURRENT: Updates is_complete, completed_at, and/or notes for a checklist item
+    Updates is_complete, completed_at, and/or notes for a checklist item
     """
+    device_id = get_device_id(request)
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # Get current checklist
-    checklist_data = database.get_checklist()
+    checklist_data = database.get_checklist(device_id)
     if not checklist_data:
         raise HTTPException(status_code=404, detail="No checklist found")
     
@@ -124,15 +128,15 @@ async def update_checklist_item(
     checklist_data['updated_at'] = datetime.now().isoformat()
     
     # Save updated checklist
-    database.save_checklist(checklist_data)
+    database.save_checklist(checklist_data, device_id)
     
     # Recompute pathway stage if patient status exists
-    status_data = database.get_patient_status()
+    status_data = database.get_patient_status(device_id)
     if status_data:
         status = PatientStatus(**status_data)
-        status = recompute_pathway_stage(status)
+        status = recompute_pathway_stage(status, device_id)
         status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
-        database.save_patient_status(status_data_updated)
+        database.save_patient_status(status_data_updated, device_id)
     
     # Return updated checklist
     return checklist_data
@@ -142,6 +146,7 @@ async def update_checklist_item(
 async def upload_checklist_item_document(
     item_id: str,
     file: UploadFile = File(...),
+    request: Request = ...,
 ):
     """
     Upload a document for a checklist item
@@ -149,13 +154,14 @@ async def upload_checklist_item_document(
     Accepts PDF or image files, saves to data/documents directory,
     and appends the file path to the checklist item's documents array
     """
+    device_id = get_device_id(request)
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # Get current checklist
-    checklist_data = database.get_checklist()
+    checklist_data = database.get_checklist(device_id)
     if not checklist_data:
         raise HTTPException(status_code=404, detail="No checklist found")
     
@@ -214,30 +220,31 @@ async def upload_checklist_item_document(
     checklist_data['updated_at'] = datetime.now().isoformat()
     
     # Save updated checklist
-    database.save_checklist(checklist_data)
+    database.save_checklist(checklist_data, device_id)
     
     # Recompute pathway stage if patient status exists
-    status_data = database.get_patient_status()
+    status_data = database.get_patient_status(device_id)
     if status_data:
         status = PatientStatus(**status_data)
-        status = recompute_pathway_stage(status)
+        status = recompute_pathway_stage(status, device_id)
         status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
-        database.save_patient_status(status_data_updated)
+        database.save_patient_status(status_data_updated, device_id)
     
     # Return updated checklist
     return checklist_data
 
 
 @router.get("/documents/{file_path:path}")
-async def get_document(file_path: str):
+async def get_document(file_path: str, request: Request):
     """
     Retrieve a document file
     
     Serves documents from the data/documents directory
     File path should be URL-encoded (e.g., documents/patient_id/item_id/filename.pdf)
     """
+    device_id = get_device_id(request)
     # Verify patient exists
-    patient = database.get_patient()
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     

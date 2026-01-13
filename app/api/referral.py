@@ -3,7 +3,7 @@ Transplant Access Navigator endpoints
 
 Handles transplant center discovery and referral orchestration
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import List, Dict, Any, Optional
 import json
 import math
@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.database import storage as database
 from app.database.schemas import PatientReferralState
+from app.api.utils import get_device_id
 
 router = APIRouter()
 
@@ -51,24 +52,26 @@ async def find_nearby_centers(
     state: Optional[str] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
-    insurance_type: Optional[str] = None
+    insurance_type: Optional[str] = None,
+    request: Request = ...,
 ):
     """
     Find nearby transplant centers
     
     Filters by location, state acceptance, and insurance compatibility
     """
+    device_id = get_device_id(request)
     centers = load_transplant_centers()
-    patient = database.get_patient()
+    patient = database.get_patient(device_id) if device_id else None
     
     # Get patient location
     patient_state = state
     patient_lat = lat
     patient_lng = lng
     
-    if not patient_state and patient:
+    if not patient_state and patient and device_id:
         # Try to get from patient referral state
-        referral_state = database.get_patient_referral_state()
+        referral_state = database.get_patient_referral_state(device_id)
         if referral_state:
             patient_state = referral_state.get('location', {}).get('state')
             patient_lat = referral_state.get('location', {}).get('lat')
@@ -121,12 +124,13 @@ async def find_nearby_centers(
 
 
 @router.get("/referral-state")
-async def get_referral_state():
+async def get_referral_state(request: Request):
     """Get patient referral state"""
-    state = database.get_patient_referral_state()
+    device_id = get_device_id(request)
+    state = database.get_patient_referral_state(device_id)
     if not state:
         # Create default state from patient data
-        patient = database.get_patient()
+        patient = database.get_patient(device_id)
         if not patient:
             raise HTTPException(status_code=404, detail="Patient not found")
         
@@ -144,16 +148,17 @@ async def get_referral_state():
             "preferred_centers": [],
             "referral_status": "not_started"
         }
-        database.save_patient_referral_state(default_state)
+        database.save_patient_referral_state(default_state, device_id)
         return default_state
     
     return state
 
 
 @router.post("/referral-state")
-async def update_referral_state(state: Dict[str, Any]):
+async def update_referral_state(state: Dict[str, Any], request: Request):
     """Update patient referral state"""
-    patient = database.get_patient()
+    device_id = get_device_id(request)
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
@@ -161,28 +166,29 @@ async def update_referral_state(state: Dict[str, Any]):
     state['patient_id'] = patient['id']
     
     # Save state
-    database.save_patient_referral_state(state)
+    database.save_patient_referral_state(state, device_id)
     
     # Update patient's has_referral if provided
     if 'has_referral' in state:
         patient['has_referral'] = state['has_referral']
-        database.save_patient(patient)
+        database.save_patient(patient, device_id)
     
     return state
 
 
 @router.get("/referral-pathway")
-async def get_referral_pathway():
+async def get_referral_pathway(request: Request):
     """
     Determine referral pathway based on patient state
     
     Returns pathway type and guidance
     """
-    patient = database.get_patient()
+    device_id = get_device_id(request)
+    patient = database.get_patient(device_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    referral_state = database.get_patient_referral_state()
+    referral_state = database.get_patient_referral_state(device_id)
     if not referral_state:
         referral_state = {
             "last_nephrologist": None,
