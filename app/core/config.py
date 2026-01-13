@@ -1,24 +1,22 @@
 """
 Basic configuration
 
-- CORS origins for development and production
-- Supports environment variables for production domains
+- CORS origins loaded from environment variables
+- Format: Comma-separated list of origins
 """
 import os
 
-# Default localhost origins for development
-DEFAULT_CORS_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8081",
-    "http://localhost:19006",
-    "https://kare-tau.vercel.app"
-]
+# Get CORS origins from environment variable
+CORS_ORIGINS_STR = os.getenv("CORS_ORIGINS", "")
 
-# Get additional CORS origins from environment variable
-ADDITIONAL_CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else []
+if not CORS_ORIGINS_STR:
+    raise ValueError(
+        "CORS_ORIGINS environment variable is required. "
+        "Set it to a comma-separated list of allowed origins."
+    )
 
-# Filter out empty strings from split
-ADDITIONAL_CORS_ORIGINS = [origin.strip() for origin in ADDITIONAL_CORS_ORIGINS if origin.strip()]
+# Split by comma and clean up whitespace
+CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_STR.split(",") if origin.strip()]
 
-# Combine default and additional origins
-CORS_ORIGINS = DEFAULT_CORS_ORIGINS + ADDITIONAL_CORS_ORIGINS
+if not CORS_ORIGINS:
+    raise ValueError("CORS_ORIGINS environment variable is set but contains no valid origins")
