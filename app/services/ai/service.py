@@ -133,7 +133,8 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
                 "completed_items": [
                     {
                         "title": item.get("title", ""),
-                        "completed_at": item.get("completed_at")
+                        "completed_at": item.get("completed_at"),
+                        "notes": item.get("notes")
                     }
                     for item in completed_items[:5]  # Last 5 completed
                 ],
@@ -141,7 +142,8 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
                     {
                         "title": item.get("title", ""),
                         "description": item.get("description", ""),
-                        "order": item.get("order", 0)
+                        "order": item.get("order", 0),
+                        "notes": item.get("notes")
                     }
                     for item in sorted(incomplete_items, key=lambda x: x.get("order", 0) if isinstance(x, dict) else 0)[:5]  # Next 5 to complete
                 ]
@@ -342,6 +344,18 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
                 checklist_lines.append(f"  • {item.get('title')}")
                 if item.get('description'):
                     checklist_lines.append(f"    ({item.get('description')})")
+                if item.get('notes'):
+                    checklist_lines.append(f"    Notes: {item.get('notes')}")
+        
+        # Include notes from completed items if available
+        completed = checklist.get("completed_items", [])
+        if completed:
+            items_with_notes = [item for item in completed if item.get('notes')]
+            if items_with_notes:
+                checklist_lines.append("\nRecent Completed Items with Notes:")
+                for item in items_with_notes[:3]:  # Top 3 completed items with notes
+                    checklist_lines.append(f"  • {item.get('title')}")
+                    checklist_lines.append(f"    Notes: {item.get('notes')}")
         
         sections.append(f"<checklist_progress>\n" + "\n".join(checklist_lines) + "\n</checklist_progress>")
     
