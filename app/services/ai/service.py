@@ -8,9 +8,35 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 import asyncio
+from pathlib import Path
 
 from app.database import storage as database
 from app.database.schemas import PatientStatus
+
+
+def read_document_text(document_path: str) -> Optional[str]:
+    """
+    Read text content from a document's .txt file
+    
+    Args:
+        document_path: Relative path like "documents/{patient_id}/{item_id}/{filename}"
+    
+    Returns:
+        Text content if file exists, None otherwise
+    """
+    try:
+        # Convert relative path to full path: data/documents/... -> data/documents/....txt
+        # The .txt file is stored at the same location with .txt appended to filename
+        full_path = Path("data") / document_path
+        text_file_path = full_path.with_name(full_path.name + '.txt')
+        
+        if text_file_path.exists() and text_file_path.is_file():
+            with open(text_file_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    except Exception:
+        # If reading fails, return None
+        pass
+    return None
 
 
 def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
@@ -61,6 +87,7 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
         "pathway_stage": None,
         "status_summary": {},
         "checklist_progress": {},
+        "checklist_documents": {},
         "recent_activity": {},
         "referral_information": {},
         "financial_profile": {}
@@ -148,6 +175,33 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
                     for item in sorted(incomplete_items, key=lambda x: x.get("order", 0) if isinstance(x, dict) else 0)[:5]  # Next 5 to complete
                 ]
             }
+            
+            # Extract document contents for all checklist items
+            checklist_documents = {}
+            for item in items:
+                if isinstance(item, dict):
+                    item_id = item.get("id")
+                    item_title = item.get("title", "")
+                    documents = item.get("documents", [])
+                    
+                    if item_id and documents and isinstance(documents, list):
+                        # Read text content from all documents for this item
+                        document_texts = []
+                        for doc_path in documents:
+                            if isinstance(doc_path, str):
+                                text_content = read_document_text(doc_path)
+                                if text_content:
+                                    document_texts.append(text_content)
+                        
+                        # Only add to context if there are documents with text
+                        if document_texts:
+                            checklist_documents[item_id] = {
+                                "title": item_title,
+                                "documents": document_texts
+                            }
+            
+            if checklist_documents:
+                context["checklist_documents"] = checklist_documents
             
             # Most recent activity
             if items:
@@ -358,6 +412,21 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
                     checklist_lines.append(f"    Notes: {item.get('notes')}")
         
         sections.append(f"<checklist_progress>\n" + "\n".join(checklist_lines) + "\n</checklist_progress>")
+    
+    # Checklist Documents
+    checklist_docs = context.get("checklist_documents", {})
+    if checklist_docs:
+        for item_id, doc_data in checklist_docs.items():
+            item_title = doc_data.get("title", "")
+            documents = doc_data.get("documents", [])
+            
+            if documents:
+                doc_lines = [f"<checklist_item id=\"{item_id}\" title=\"{item_title}\">"]
+                # Combine all document texts for this item
+                combined_text = "\n\n---\n\n".join(documents)
+                doc_lines.append(combined_text)
+                doc_lines.append("</checklist_item>")
+                sections.append("\n".join(doc_lines))
     
     # Referral Information
     referral = context.get("referral_information", {})
