@@ -1,7 +1,7 @@
 """
-FHIR export endpoints
+Export endpoints
 
-Exports patient data in FHIR R4 format, including all stored data and uploaded documents.
+Exports patient data in FHIR R4 format and generates AI-powered clinical summaries.
 """
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -12,6 +12,8 @@ from datetime import datetime
 
 from app.database import storage as database
 from app.api.utils import get_device_id
+from app.services.ai.service import build_patient_context, read_document_text
+from app.services.ai.config import get_openai_client, get_default_model, is_ai_enabled
 
 router = APIRouter()
 
@@ -416,12 +418,15 @@ def create_fhir_document_references(
     """
     Create FHIR DocumentReference resources from uploaded documents
     
+    Only includes .txt files (extracted text) rather than the original images/PDFs.
+    Each document has a corresponding .txt file with the extracted text content.
+    
     Args:
         checklist_data: Checklist dictionary containing document references
         patient_id: Patient ID
         
     Returns:
-        List of FHIR DocumentReference resources with base64 encoded content
+        List of FHIR DocumentReference resources with text content from .txt files
     """
     document_references = []
     
@@ -436,28 +441,42 @@ def create_fhir_document_references(
         documents = item.get('documents', [])
         
         for doc_path in documents:
-            doc_counter += 1
-            
             # Construct full file path
             # Document paths are stored as: documents/{patient_id}/{item_id}/{filename}
             full_path = Path("data") / doc_path
             
-            # Check if file exists
+            # Check if original file exists
             if not full_path.exists():
                 continue
             
-            # Encode document to base64
-            base64_content = encode_document_to_base64(full_path)
-            if not base64_content:
+            # Look for corresponding .txt file
+            txt_path = full_path.with_suffix(full_path.suffix + '.txt')
+            
+            # Only include documents that have a .txt file
+            if not txt_path.exists():
                 continue
             
-            # Get media type
-            media_type = get_document_media_type(full_path)
+            doc_counter += 1
             
-            # Extract filename
-            filename = full_path.name
+            # Read text content from .txt file
+            try:
+                with open(txt_path, 'r', encoding='utf-8') as f:
+                    text_content = f.read()
+            except Exception:
+                # If we can't read the text file, skip this document
+                continue
             
-            # Create DocumentReference
+            # Encode text content to base64
+            try:
+                text_bytes = text_content.encode('utf-8')
+                base64_content = base64.b64encode(text_bytes).decode('utf-8')
+            except Exception:
+                continue
+            
+            # Extract original filename (without .txt extension)
+            original_filename = full_path.name
+            
+            # Create DocumentReference with text content
             doc_ref = {
                 "resourceType": "DocumentReference",
                 "id": f"{patient_id}-doc-{doc_counter}",
@@ -479,10 +498,10 @@ def create_fhir_document_references(
                 "content": [
                     {
                         "attachment": {
-                            "contentType": media_type,
+                            "contentType": "text/plain",
                             "data": base64_content,
-                            "title": filename,
-                            "creation": datetime.fromtimestamp(full_path.stat().st_mtime).isoformat() if full_path.exists() else datetime.now().isoformat()
+                            "title": original_filename,
+                            "creation": datetime.fromtimestamp(txt_path.stat().st_mtime).isoformat() if txt_path.exists() else datetime.now().isoformat()
                         }
                     }
                 ],
@@ -499,6 +518,13 @@ def create_fhir_document_references(
             # Add description from checklist item
             if item.get('description'):
                 doc_ref["description"] = item.get('description')
+            
+            # Add note that this is extracted text from the original document
+            doc_ref["note"] = [
+                {
+                    "text": f"Extracted text content from {original_filename}"
+                }
+            ]
             
             document_references.append(doc_ref)
     
@@ -613,6 +639,238 @@ def create_fhir_bundle(
         bundle["extension"] = extensions
     
     return bundle
+
+
+def format_context_for_clinical_summary(context: Dict[str, Any]) -> str:
+    """
+    Formats the patient context into a structured prompt for clinical summary generation
+    
+    Args:
+        context: Patient context dictionary from build_patient_context
+        
+    Returns:
+        Formatted string with all patient data for summary generation
+    """
+    sections = []
+    
+    # Patient Demographics
+    patient = context.get("patient_summary", {})
+    if patient:
+        patient_lines = []
+        if patient.get("has_ckd_esrd"):
+            patient_lines.append("Diagnosis: CKD/ESRD confirmed")
+        if patient.get("last_gfr") is not None:
+            patient_lines.append(f"Last GFR: {patient.get('last_gfr')} mL/min/1.73m²")
+        if patient.get("has_referral"):
+            patient_lines.append("Has existing referral")
+        if patient_lines:
+            sections.append("PATIENT INFORMATION:\n" + "\n".join(patient_lines))
+    
+    # Pathway Stage
+    pathway_stage = context.get("pathway_stage")
+    if pathway_stage:
+        stage_descriptions = {
+            "identification": "Identification & Awareness - Early stage, learning about transplant options",
+            "referral": "Referral Stage - Need to obtain referral to transplant center",
+            "evaluation": "Evaluation Stage - Undergoing pre-transplant evaluation workup",
+            "selection": "Selection & Waitlisting - Evaluation mostly complete, ready for waitlist consideration",
+            "transplantation": "Transplantation - On waitlist or scheduled for transplant",
+            "post-transplant": "Post-Transplant - Post-transplant care and monitoring"
+        }
+        stage_desc = stage_descriptions.get(pathway_stage, pathway_stage)
+        sections.append(f"PATHWAY STAGE: {pathway_stage.upper()} - {stage_desc}")
+    
+    # Medical Status
+    status = context.get("status_summary", {})
+    if status:
+        status_lines = []
+        if status.get("has_absolute_contraindications"):
+            status_lines.append("ABSOLUTE CONTRAINDICATIONS (may prevent transplant):")
+            for contra in status.get("absolute_contraindications", []):
+                status_lines.append(f"  • {contra.get('question')}")
+        else:
+            status_lines.append("No absolute contraindications identified")
+        
+        if status.get("has_relative_contraindications"):
+            status_lines.append("\nRELATIVE CONTRAINDICATIONS (may need to be addressed):")
+            for contra in status.get("relative_contraindications", []):
+                status_lines.append(f"  • {contra.get('question')}")
+        else:
+            status_lines.append("No relative contraindications identified")
+        
+        if status_lines:
+            sections.append("MEDICAL STATUS:\n" + "\n".join(status_lines))
+    
+    # Checklist Progress
+    checklist = context.get("checklist_progress", {})
+    if checklist and checklist.get("total_items", 0) > 0:
+        checklist_lines = []
+        checklist_lines.append(f"Progress: {checklist.get('completed_count')}/{checklist.get('total_items')} items complete ({checklist.get('completion_percentage')}%)")
+        
+        completed = checklist.get("completed_items", [])
+        if completed:
+            checklist_lines.append("\nCompleted Items:")
+            for item in completed[:10]:  # Top 10 completed
+                checklist_lines.append(f"  • {item.get('title')}")
+                if item.get('notes'):
+                    checklist_lines.append(f"    Notes: {item.get('notes')}")
+        
+        incomplete = checklist.get("incomplete_items", [])
+        if incomplete:
+            checklist_lines.append("\nRemaining Items:")
+            for item in incomplete[:10]:  # Top 10 remaining
+                checklist_lines.append(f"  • {item.get('title')}")
+                if item.get('description'):
+                    checklist_lines.append(f"    Description: {item.get('description')}")
+        
+        sections.append("CHECKLIST PROGRESS:\n" + "\n".join(checklist_lines))
+    
+    # Checklist Documents (extracted text)
+    checklist_docs = context.get("checklist_documents", {})
+    if checklist_docs:
+        doc_sections = []
+        for item_id, doc_data in checklist_docs.items():
+            item_title = doc_data.get("title", "")
+            documents = doc_data.get("documents", [])
+            
+            if documents:
+                doc_sections.append(f"\n{item_title.upper()}:")
+                # Include all document texts for this item
+                for idx, doc_text in enumerate(documents, 1):
+                    doc_sections.append(f"\nDocument {idx}:")
+                    doc_sections.append(doc_text[:2000])  # Limit each document to 2000 chars
+                    if len(doc_text) > 2000:
+                        doc_sections.append("... (truncated)")
+        
+        if doc_sections:
+            sections.append("UPLOADED DOCUMENTS:\n" + "\n".join(doc_sections))
+    
+    # Referral Information
+    referral = context.get("referral_information", {})
+    if referral:
+        referral_lines = []
+        if referral.get("has_referral"):
+            referral_lines.append("Has referral to transplant center")
+        else:
+            referral_lines.append("Does NOT have referral yet")
+        
+        referral_status = referral.get("referral_status", "not_started")
+        if referral_status != "not_started":
+            referral_lines.append(f"Referral process status: {referral_status}")
+        
+        if referral.get("has_nephrologist"):
+            referral_lines.append("Has a nephrologist who can provide referral")
+        if referral.get("has_dialysis_center"):
+            referral_lines.append("Has a dialysis center that can assist with referral")
+        
+        location = referral.get("location", {})
+        if location:
+            location_parts = []
+            if location.get("city"):
+                location_parts.append(location.get("city"))
+            if location.get("state"):
+                location_parts.append(location.get("state"))
+            if location.get("zip"):
+                location_parts.append(location.get("zip"))
+            if location_parts:
+                referral_lines.append(f"Location: {', '.join(location_parts)}")
+        
+        sections.append("REFERRAL INFORMATION:\n" + "\n".join(referral_lines))
+    
+    # Financial Profile
+    financial = context.get("financial_profile", {})
+    if financial and financial.get("has_profile"):
+        financial_lines = []
+        if financial.get("has_answers"):
+            financial_lines.append(f"Financial assessment: {financial.get('completed_count')}/{financial.get('total_questions')} questions completed ({financial.get('completion_percentage')}%)")
+            if financial.get("submitted_at"):
+                financial_lines.append(f"Submitted: {financial.get('submitted_at')}")
+        else:
+            financial_lines.append("Financial assessment: Not yet started")
+        
+        sections.append("FINANCIAL PROFILE:\n" + "\n".join(financial_lines))
+    
+    return "\n\n".join(sections)
+
+
+def generate_clinical_summary(patient_id: str, device_id: str, model: str = "gpt-4o") -> str:
+    """
+    Generate a clinical summary document using OpenAI
+    
+    Args:
+        patient_id: Patient ID
+        device_id: Device ID to get patient data
+        model: OpenAI model to use (default: gpt-4o)
+        
+    Returns:
+        Generated clinical summary text
+    """
+    if not is_ai_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="AI features are not enabled. OPENAI_API_KEY environment variable not set."
+        )
+    
+    # Build patient context (reuse from AI service)
+    context = build_patient_context(patient_id, device_id)
+    
+    # Format context for summary generation
+    context_str = format_context_for_clinical_summary(context)
+    
+    # Build system prompt for clinical summary
+    system_prompt = """You are a medical documentation assistant helping to create a comprehensive clinical summary for a kidney transplant evaluation patient.
+
+Your task is to generate a clear, professional clinical summary document that can be shared with healthcare providers and transplant centers.
+
+Guidelines:
+- Write in a professional, clinical tone suitable for medical documentation
+- Organize information clearly with appropriate sections
+- Include all relevant clinical information from the provided context
+- Be concise but comprehensive
+- Use standard medical terminology
+- Do NOT provide medical advice, diagnoses, or treatment recommendations
+- Focus on factual information from the patient's data
+- Format the summary as a clean, readable document with clear sections
+- Include relevant details from uploaded documents when available"""
+
+    # Build user prompt
+    user_prompt = f"""Generate a comprehensive clinical summary document for this patient based on the following information:
+
+{context_str}
+
+Please create a well-structured clinical summary document that includes:
+1. Patient Demographics and Clinical Status
+2. Current Pathway Stage and Progress
+3. Medical Status and Contraindications
+4. Pre-transplant Checklist Progress
+5. Relevant Information from Uploaded Documents
+6. Referral Status
+7. Financial Assessment Status (if applicable)
+
+Format the summary as a professional medical document that can be easily shared with healthcare providers."""
+
+    try:
+        client = get_openai_client()
+        
+        # Use standard OpenAI Chat Completions API
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,  # Lower temperature for more consistent, factual output
+            max_tokens=2000  # Allow for comprehensive summary
+        )
+        
+        summary = response.choices[0].message.content.strip()
+        return summary
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate clinical summary: {str(e)}"
+        )
 
 
 @router.get("/patients/fhir")
@@ -732,4 +990,57 @@ async def export_patient_fhir_by_id(patient_id: str, request: Request):
     )
     
     return JSONResponse(content=bundle, media_type="application/fhir+json")
+
+
+@router.get("/patients/clinical-summary")
+async def export_clinical_summary(request: Request, model: Optional[str] = None):
+    """
+    Generate and export a comprehensive clinical summary document using AI
+    
+    This endpoint generates a professional clinical summary document that encompasses
+    all patient data including demographics, medical status, checklist progress,
+    uploaded documents (extracted text), referral status, and financial profile.
+    
+    The summary is generated using OpenAI GPT-4o and is formatted as a clean,
+    shareable document suitable for healthcare providers and transplant centers.
+    
+    Args:
+        request: FastAPI request object (used to get device_id)
+        model: Optional OpenAI model name (defaults to gpt-4o)
+        
+    Returns:
+        JSON response with the generated clinical summary
+    """
+    device_id = get_device_id(request)
+    
+    # Verify patient exists
+    patient_data = database.get_patient(device_id)
+    if not patient_data:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    patient_id = patient_data.get('id')
+    
+    # Use provided model or default
+    model_name = model or get_default_model()
+    
+    # Generate clinical summary
+    try:
+        summary = generate_clinical_summary(patient_id, device_id, model_name)
+        
+        return JSONResponse(
+            content={
+                "summary": summary,
+                "generated_at": datetime.now().isoformat(),
+                "patient_id": patient_id,
+                "model": model_name
+            },
+            media_type="application/json"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate clinical summary: {str(e)}"
+        )
 
