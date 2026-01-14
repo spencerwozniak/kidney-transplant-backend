@@ -673,6 +673,42 @@ def get_ai_response(patient_id: str, user_query: str, device_id: str, provider: 
     return response
 
 
+def should_show_journey_button(user_query: str, response_text: str) -> bool:
+    """
+    Determines if a journey navigation button should be shown based on the query and response.
+    
+    The button should appear when the AI is providing guidance about:
+    - Next steps in the journey
+    - Current position in the pathway
+    - Progress or status updates
+    - What to do next
+    
+    Args:
+        user_query: The patient's original question
+        response_text: The AI's response text
+    
+    Returns:
+        True if button should be shown, False otherwise
+    """
+    # Keywords that indicate journey/next steps guidance
+    journey_keywords = [
+        'next step', 'next steps', 'where you are', 'your journey', 'pathway',
+        'stage', 'progress', 'current', 'what to do', 'should do', 'need to',
+        'checklist', 'evaluation', 'referral', 'transplant journey', 'journey',
+        'position', 'status', 'where are you', 'where am i', 'what stage'
+    ]
+    
+    # Combine query and response for analysis
+    combined_text = (user_query + ' ' + response_text).lower()
+    
+    # Check if any journey keywords appear
+    for keyword in journey_keywords:
+        if keyword in combined_text:
+            return True
+    
+    return False
+
+
 async def get_ai_response_stream(patient_id: str, user_query: str, device_id: str, provider: str = "openai", model: str = "gpt-5.1"):
     """
     Main function to get streaming AI response for a patient query (async)
@@ -685,16 +721,32 @@ async def get_ai_response_stream(patient_id: str, user_query: str, device_id: st
         model: Model name to use
     
     Yields:
-        Text chunks as they are generated
+        Tuples of (chunk_type, data) where chunk_type is 'text' or 'metadata'
+        - 'text' chunks contain response text
+        - 'metadata' chunk contains button info (sent once at the end)
     """
     # Build patient context
     context = build_patient_context(patient_id, device_id)
+    pathway_stage = context.get("pathway_stage")
     
     # Build prompts
     system_prompt = build_system_prompt()
     user_prompt = build_user_prompt(user_query, context)
     
+    # Collect full response text to determine if button should be shown
+    full_response = ""
+    
     # Call LLM with streaming (async)
     async for chunk in call_llm_stream(system_prompt, user_prompt, provider, model):
-        yield chunk
+        full_response += chunk
+        yield ('text', chunk)
+    
+    # After streaming completes, determine if button should be shown
+    if should_show_journey_button(user_query, full_response):
+        button_metadata = {
+            'show_button': True,
+            'button_text': 'See where you are',
+            'pathway_stage': pathway_stage
+        }
+        yield ('metadata', button_metadata)
 

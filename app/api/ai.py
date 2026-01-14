@@ -148,21 +148,33 @@ async def query_ai_assistant_stream(request_body: AIQueryRequest, request: Reque
         try:
             print(f"[AI Stream] Starting stream for query: {request_body.query[:50]}...")
             chunk_count = 0
+            button_metadata = None
+            
             # Stream AI response (async for proper event loop yielding)
-            async for chunk in get_ai_response_stream(
+            async for chunk_type, chunk_data in get_ai_response_stream(
                 patient_id=patient_id,
                 user_query=request_body.query,
                 device_id=device_id,
                 provider=request_body.provider or "openai",
                 model=request_body.model or "gpt-5.1"
             ):
-                chunk_count += 1
-                # Send each chunk as JSON
-                chunk_data = f"data: {json.dumps({'chunk': chunk})}\n\n"
-                print(f"[AI Stream] Yielding chunk {chunk_count}: {chunk[:20]}...")
-                yield chunk_data.encode('utf-8')
+                if chunk_type == 'text':
+                    chunk_count += 1
+                    # Send each text chunk as JSON
+                    chunk_json = f"data: {json.dumps({'chunk': chunk_data})}\n\n"
+                    print(f"[AI Stream] Yielding chunk {chunk_count}: {chunk_data[:20]}...")
+                    yield chunk_json.encode('utf-8')
+                elif chunk_type == 'metadata':
+                    # Store button metadata to send after completion
+                    button_metadata = chunk_data
             
             print(f"[AI Stream] Completed, sent {chunk_count} chunks")
+            
+            # Send button metadata if available
+            if button_metadata:
+                metadata_json = f"data: {json.dumps({'button': button_metadata})}\n\n"
+                yield metadata_json.encode('utf-8')
+            
             # Send completion signal
             yield f"data: {json.dumps({'done': True})}\n\n".encode('utf-8')
         
