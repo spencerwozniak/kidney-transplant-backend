@@ -57,8 +57,20 @@ async def submit_questionnaire(submission: QuestionnaireSubmission, request: Req
     database.save_questionnaire(data, device_id)
     
     # Recompute patient status from all questionnaires (rollup)
-    status = compute_patient_status_from_all_questionnaires(submission.patient_id, device_id)
-    status.id = str(uuid.uuid4())
+    try:
+        status = compute_patient_status_from_all_questionnaires(submission.patient_id, device_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+    # Preserve existing status ID if it exists (don't regenerate on recomputation)
+    # Only generate new ID if this is the first time creating a status
+    existing_status = database.get_patient_status(device_id)
+    if existing_status and existing_status.get('id'):
+        # Preserve the existing ID
+        status.id = existing_status['id']
+    elif not status.id:
+        # Only generate new ID if no existing status exists
+        status.id = str(uuid.uuid4())
     
     # Prepare status data for storage
     status_data = convert_datetime_to_iso(status.model_dump(), ['updated_at'])

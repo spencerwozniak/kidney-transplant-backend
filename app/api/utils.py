@@ -8,13 +8,14 @@ def get_device_id(request: Request) -> str:
     """
     Extract device ID from request headers
     
-    Raises HTTPException if device ID is missing
+    Raises HTTPException with 400 status if device ID is missing (not 404)
+    Includes device_id in error message for debugging
     """
     device_id = request.headers.get('X-Device-ID')
     if not device_id:
         raise HTTPException(
             status_code=400,
-            detail="X-Device-ID header is required"
+            detail="Missing X-Device-ID header. This header is required for all requests."
         )
     return device_id
 

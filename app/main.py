@@ -23,15 +23,24 @@ except ImportError:
 
 from app.api import router
 from app.core.config import CORS_ORIGINS
+from app.api.middleware import TimingMiddleware
 
 app = FastAPI()
 
+# Add timing middleware for performance monitoring
+# Logs request duration and device_id for all requests
+app.add_middleware(TimingMiddleware)
+
+# CORS middleware configuration
+# For development/demo: allow all origins. For production, restrict to your app origins.
+# Explicitly allow X-Device-ID header for device-based authentication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=CORS_ORIGINS,  # Uses CORS_ORIGINS from config (env var)
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
+    allow_headers=["*"],  # Allow all headers including X-Device-ID, Content-Type, etc.
+    expose_headers=["*"],  # Expose all headers to the client
 )
 
 app.include_router(router, prefix="/api/v1")

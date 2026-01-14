@@ -24,10 +24,11 @@ def temp_data_dir():
     original_save_questionnaire = database.save_questionnaire
     original_get_all_questionnaires = database.get_all_questionnaires_for_patient
     original_get_checklist = database.get_checklist
+    original_save_checklist = database.save_checklist
     original_save_patient_status = database.save_patient_status
     
     # Patch load_questions to use temp directory (demo-safe: returns [] if file missing)
-    from app.services import status_computation
+    from app.services.status import computation as status_computation
     original_load_questions = status_computation.load_questions
     
     def temp_load_questions():
@@ -72,12 +73,18 @@ def temp_data_dir():
     with open(f"{temp_dir}/questions.json", 'w') as f:
         json.dump(minimal_questions, f, indent=2)
     
-    def temp_save_patient(patient):
+    def temp_save_patient(patient, device_id):
+        """
+        Mock function matching actual signature: save_patient(patient, device_id)
+        """
         os.makedirs(temp_dir, exist_ok=True)
         with open(f"{temp_dir}/patient.json", 'w') as f:
             json.dump([patient], f, indent=2)
     
-    def temp_get_patient():
+    def temp_get_patient(device_id):
+        """
+        Mock function matching actual signature: get_patient(device_id)
+        """
         try:
             with open(f"{temp_dir}/patient.json", 'r') as f:
                 patients = json.load(f)
@@ -85,7 +92,10 @@ def temp_data_dir():
         except (FileNotFoundError, json.JSONDecodeError):
             return None
     
-    def temp_save_questionnaire(questionnaire):
+    def temp_save_questionnaire(questionnaire, device_id):
+        """
+        Mock function matching actual signature: save_questionnaire(questionnaire, device_id)
+        """
         os.makedirs(temp_dir, exist_ok=True)
         try:
             with open(f"{temp_dir}/questionnaire.json", 'r') as f:
@@ -96,7 +106,10 @@ def temp_data_dir():
         with open(f"{temp_dir}/questionnaire.json", 'w') as f:
             json.dump(data, f, indent=2)
     
-    def temp_get_all_questionnaires_for_patient(patient_id):
+    def temp_get_all_questionnaires_for_patient(patient_id, device_id):
+        """
+        Mock function matching actual signature: get_all_questionnaires_for_patient(patient_id, device_id)
+        """
         try:
             with open(f"{temp_dir}/questionnaire.json", 'r') as f:
                 questionnaires = json.load(f)
@@ -104,7 +117,10 @@ def temp_data_dir():
             return []
         return [q for q in questionnaires if q.get('patient_id') == patient_id]
     
-    def temp_get_checklist():
+    def temp_get_checklist(device_id):
+        """
+        Mock function matching actual signature: get_checklist(device_id)
+        """
         try:
             with open(f"{temp_dir}/checklist.json", 'r') as f:
                 checklists = json.load(f)
@@ -112,7 +128,18 @@ def temp_data_dir():
         except (FileNotFoundError, json.JSONDecodeError):
             return None
     
-    def temp_save_patient_status(status):
+    def temp_save_checklist(checklist, device_id):
+        """
+        Mock function matching actual signature: save_checklist(checklist, device_id)
+        """
+        os.makedirs(temp_dir, exist_ok=True)
+        with open(f"{temp_dir}/checklist.json", 'w') as f:
+            json.dump([checklist], f, indent=2)
+    
+    def temp_save_patient_status(status, device_id):
+        """
+        Mock function matching actual signature: save_patient_status(status, device_id)
+        """
         os.makedirs(temp_dir, exist_ok=True)
         with open(f"{temp_dir}/patient_status.json", 'w') as f:
             json.dump([status], f, indent=2)
@@ -123,6 +150,7 @@ def temp_data_dir():
     database.save_questionnaire = temp_save_questionnaire
     database.get_all_questionnaires_for_patient = temp_get_all_questionnaires_for_patient
     database.get_checklist = temp_get_checklist
+    database.save_checklist = temp_save_checklist
     database.save_patient_status = temp_save_patient_status
     
     yield temp_dir
@@ -133,6 +161,7 @@ def temp_data_dir():
     database.save_questionnaire = original_save_questionnaire
     database.get_all_questionnaires_for_patient = original_get_all_questionnaires
     database.get_checklist = original_get_checklist
+    database.save_checklist = original_save_checklist
     database.save_patient_status = original_save_patient_status
     status_computation.load_questions = original_load_questions
     
@@ -146,6 +175,12 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture
+def test_headers():
+    """Standard test headers with X-Device-ID"""
+    return {"X-Device-ID": "test-device"}
+
+
 def test_root(client):
     """Test root endpoint"""
     response = client.get("/")
@@ -153,7 +188,7 @@ def test_root(client):
     assert response.json()["status"] == "ok"
 
 
-def test_create_patient(client, temp_data_dir):
+def test_create_patient(client, temp_data_dir, test_headers):
     """Test creating a patient and verify database file is created"""
     patient_data = {
         "name": "John Doe",
@@ -162,7 +197,7 @@ def test_create_patient(client, temp_data_dir):
         "phone": "555-1234"
     }
     
-    response = client.post("/api/v1/patients", json=patient_data)
+    response = client.post("/api/v1/patients", json=patient_data, headers=test_headers)
     
     # Verify response
     assert response.status_code == 200
@@ -183,14 +218,14 @@ def test_create_patient(client, temp_data_dir):
         assert saved_data[0]["id"] == data["id"]
 
 
-def test_get_patient_not_found(client, temp_data_dir):
+def test_get_patient_not_found(client, temp_data_dir, test_headers):
     """Test getting patient when none exists"""
-    response = client.get("/api/v1/patients")
+    response = client.get("/api/v1/patients", headers=test_headers)
     assert response.status_code == 404
     assert "No patient found" in response.json()["detail"]
 
 
-def test_get_patient(client, temp_data_dir):
+def test_get_patient(client, temp_data_dir, test_headers):
     """Test getting a patient after creating one"""
     # Create patient first
     patient_data = {
@@ -198,32 +233,31 @@ def test_get_patient(client, temp_data_dir):
         "date_of_birth": "1975-05-20",
         "email": "jane@example.com"
     }
-    create_response = client.post("/api/v1/patients", json=patient_data)
+    create_response = client.post("/api/v1/patients", json=patient_data, headers=test_headers)
     assert create_response.status_code == 200
     created_id = create_response.json()["id"]
     
     # Get patient
-    response = client.get("/api/v1/patients")
+    response = client.get("/api/v1/patients", headers=test_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Jane Smith"
     assert data["id"] == created_id
 
 
-def test_submit_questionnaire_no_patient(client, temp_data_dir):
+def test_submit_questionnaire_no_patient(client, temp_data_dir, test_headers):
     """Test submitting questionnaire when no patient exists"""
     questionnaire_data = {
         "patient_id": "test-id",
-        "answers": {"q1": "yes", "q2": "no"},
-        "results": {"eligible": False}
+        "answers": {"q1": "yes", "q2": "no"}
     }
     
-    response = client.post("/api/v1/questionnaire", json=questionnaire_data)
+    response = client.post("/api/v1/questionnaire", json=questionnaire_data, headers=test_headers)
     assert response.status_code == 404
     assert "Patient not found" in response.json()["detail"]
 
 
-def test_submit_questionnaire(client, temp_data_dir):
+def test_submit_questionnaire(client, temp_data_dir, test_headers):
     """Test submitting questionnaire and verify database file is created"""
     # Create patient first
     patient_data = {
@@ -231,7 +265,7 @@ def test_submit_questionnaire(client, temp_data_dir):
         "date_of_birth": "1990-01-01",
         "email": "test@example.com"
     }
-    patient_response = client.post("/api/v1/patients", json=patient_data)
+    patient_response = client.post("/api/v1/patients", json=patient_data, headers=test_headers)
     patient_id = patient_response.json()["id"]
     
     # Submit questionnaire
@@ -244,7 +278,7 @@ def test_submit_questionnaire(client, temp_data_dir):
         }
     }
     
-    response = client.post("/api/v1/questionnaire", json=questionnaire_data)
+    response = client.post("/api/v1/questionnaire", json=questionnaire_data, headers=test_headers)
     
     # Verify response
     assert response.status_code == 200
@@ -267,29 +301,27 @@ def test_submit_questionnaire(client, temp_data_dir):
         assert saved_data[0]["id"] == data["id"]
 
 
-def test_submit_multiple_questionnaires(client, temp_data_dir):
+def test_submit_multiple_questionnaires(client, temp_data_dir, test_headers):
     """Test that multiple questionnaires are appended, not overwritten"""
     # Create patient
     patient_response = client.post("/api/v1/patients", json={
         "name": "Test",
         "date_of_birth": "1990-01-01"
-    })
+    }, headers=test_headers)
     patient_id = patient_response.json()["id"]
     
     # Submit first questionnaire
     response1 = client.post("/api/v1/questionnaire", json={
         "patient_id": patient_id,
-        "answers": {"q1": "yes"},
-        "results": {}
-    })
+        "answers": {"q1": "yes"}
+    }, headers=test_headers)
     id1 = response1.json()["id"]
     
     # Submit second questionnaire
     response2 = client.post("/api/v1/questionnaire", json={
         "patient_id": patient_id,
-        "answers": {"q1": "no"},
-        "results": {}
-    })
+        "answers": {"q1": "no"}
+    }, headers=test_headers)
     id2 = response2.json()["id"]
     
     # Verify both are saved
@@ -303,44 +335,43 @@ def test_submit_multiple_questionnaires(client, temp_data_dir):
         assert saved_data[1]["patient_id"] == patient_id
 
 
-def test_patient_validation(client):
+def test_patient_validation(client, test_headers):
     """Test that patient validation works (required fields)"""
     # Missing required field
     response = client.post("/api/v1/patients", json={
         "date_of_birth": "1990-01-01"
         # Missing name
-    })
+    }, headers=test_headers)
     assert response.status_code == 422  # Validation error
 
 
-def test_questionnaire_wrong_patient_id(client, temp_data_dir):
+def test_questionnaire_wrong_patient_id(client, temp_data_dir, test_headers):
     """Test that questionnaire with wrong patient_id is rejected"""
     # Create patient
     patient_response = client.post("/api/v1/patients", json={
         "name": "Test Patient",
         "date_of_birth": "1990-01-01"
-    })
+    }, headers=test_headers)
     correct_patient_id = patient_response.json()["id"]
     
     # Try to submit questionnaire with wrong patient_id
     response = client.post("/api/v1/questionnaire", json={
         "patient_id": "wrong-id-123",
-        "answers": {"q1": "yes"},
-        "results": {}
-    })
+        "answers": {"q1": "yes"}
+    }, headers=test_headers)
     
     assert response.status_code == 400
     assert "Patient ID does not match" in response.json()["detail"]
 
 
-def test_patient_status_rollup_across_questionnaires(client, temp_data_dir):
+def test_patient_status_rollup_across_questionnaires(client, temp_data_dir, test_headers):
     """Test that patient status rolls up contraindications across all questionnaires"""
     # 1) Create patient
     patient_response = client.post("/api/v1/patients", json={
         "name": "Test Patient",
         "date_of_birth": "1990-01-01",
         "email": "test@example.com"
-    })
+    }, headers=test_headers)
     patient_id = patient_response.json()["id"]
     
     # 2) Submit questionnaire 1 with no contraindications
@@ -352,11 +383,11 @@ def test_patient_status_rollup_across_questionnaires(client, temp_data_dir):
             "severe_lung_disease": "no"
         }
     }
-    response1 = client.post("/api/v1/questionnaire", json=questionnaire1_data)
+    response1 = client.post("/api/v1/questionnaire", json=questionnaire1_data, headers=test_headers)
     assert response1.status_code == 200
     
     # 3) GET patient-status => has_absolute=false, has_relative=false
-    status_response1 = client.get("/api/v1/patient-status")
+    status_response1 = client.get("/api/v1/patient-status", headers=test_headers)
     assert status_response1.status_code == 200
     status_data1 = status_response1.json()
     assert status_data1["has_absolute"] is False
@@ -373,11 +404,11 @@ def test_patient_status_rollup_across_questionnaires(client, temp_data_dir):
             "severe_lung_disease": "no"
         }
     }
-    response2 = client.post("/api/v1/questionnaire", json=questionnaire2_data)
+    response2 = client.post("/api/v1/questionnaire", json=questionnaire2_data, headers=test_headers)
     assert response2.status_code == 200
     
     # 5) GET patient-status => has_absolute=true and contraindication list includes that item
-    status_response2 = client.get("/api/v1/patient-status")
+    status_response2 = client.get("/api/v1/patient-status", headers=test_headers)
     assert status_response2.status_code == 200
     status_data2 = status_response2.json()
     assert status_data2["has_absolute"] is True
@@ -393,7 +424,7 @@ def test_patient_status_rollup_across_questionnaires(client, temp_data_dir):
     assert metastatic_cancer_found, "metastatic_cancer contraindication should be in the list"
 
 
-def test_pathway_stage_has_referral_none(client, temp_data_dir):
+def test_pathway_stage_has_referral_none(client, temp_data_dir, test_headers):
     """Test that pathway_stage is 'referral' when has_referral is None"""
     # Create patient without has_referral set (None)
     patient_response = client.post("/api/v1/patients", json={
@@ -401,7 +432,7 @@ def test_pathway_stage_has_referral_none(client, temp_data_dir):
         "date_of_birth": "1990-01-01",
         "email": "test@example.com"
         # has_referral not set, so it will be None
-    })
+    }, headers=test_headers)
     patient_id = patient_response.json()["id"]
     
     # Submit questionnaire
@@ -412,24 +443,24 @@ def test_pathway_stage_has_referral_none(client, temp_data_dir):
             "decompensated_cirrhosis": "no"
         }
     }
-    response = client.post("/api/v1/questionnaire", json=questionnaire_data)
+    response = client.post("/api/v1/questionnaire", json=questionnaire_data, headers=test_headers)
     assert response.status_code == 200
     
     # Get patient status - should be 'referral' (not evaluation/selection)
-    status_response = client.get("/api/v1/patient-status")
+    status_response = client.get("/api/v1/patient-status", headers=test_headers)
     assert status_response.status_code == 200
     status_data = status_response.json()
     assert status_data["pathway_stage"] == "referral", "pathway_stage should be 'referral' when has_referral is None"
 
 
-def test_latest_answer_wins(client, temp_data_dir):
+def test_latest_answer_wins(client, temp_data_dir, test_headers):
     """Test that latest questionnaire answer wins when there are conflicts"""
     # 1) Create patient
     patient_response = client.post("/api/v1/patients", json={
         "name": "Test Patient",
         "date_of_birth": "1990-01-01",
         "email": "test@example.com"
-    })
+    }, headers=test_headers)
     patient_id = patient_response.json()["id"]
     
     # 2) Submit Q1: metastatic_cancer=yes
@@ -443,11 +474,11 @@ def test_latest_answer_wins(client, temp_data_dir):
         },
         "submitted_at": base_time.isoformat()
     }
-    response1 = client.post("/api/v1/questionnaire", json=questionnaire1_data)
+    response1 = client.post("/api/v1/questionnaire", json=questionnaire1_data, headers=test_headers)
     assert response1.status_code == 200
     
     # Verify Q1 creates contraindication
-    status_response1 = client.get("/api/v1/patient-status")
+    status_response1 = client.get("/api/v1/patient-status", headers=test_headers)
     assert status_response1.status_code == 200
     status_data1 = status_response1.json()
     assert status_data1["has_absolute"] is True, "First questionnaire with yes should create contraindication"
@@ -460,11 +491,11 @@ def test_latest_answer_wins(client, temp_data_dir):
         },
         "submitted_at": (base_time + timedelta(seconds=1)).isoformat()  # Later timestamp
     }
-    response2 = client.post("/api/v1/questionnaire", json=questionnaire2_data)
+    response2 = client.post("/api/v1/questionnaire", json=questionnaire2_data, headers=test_headers)
     assert response2.status_code == 200
     
     # 4) GET patient-status => has_absolute must be false and metastatic_cancer must NOT appear
-    status_response2 = client.get("/api/v1/patient-status")
+    status_response2 = client.get("/api/v1/patient-status", headers=test_headers)
     assert status_response2.status_code == 200
     status_data2 = status_response2.json()
     assert status_data2["has_absolute"] is False, "Latest answer 'no' should clear the contraindication"

@@ -116,7 +116,7 @@ class PatientReferralState(BaseModel):
     Tracks patient's referral status and provider information
     """
     patient_id: str                             = Field(..., description="Patient ID")
-    location: Dict[str, Any]                    = Field(..., description="Patient location (zip, state, optionally lat/lng)")
+    location: Dict[str, Any]                    = Field(..., description="Patient location (zip, city, state, optionally lat/lng). City and state can be provided by frontend or derived from zip.")
     has_referral: bool                          = Field(default=False, description="Whether patient has a referral")
     referral_source: Optional[str]              = Field(None, description="Source of referral (nephrologist, pcp, dialysis_center, etc.)")
     last_nephrologist: Optional[Dict[str, Any]] = Field(None, description="Nephrologist information (name, clinic)")

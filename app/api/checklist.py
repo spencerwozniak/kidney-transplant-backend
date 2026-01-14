@@ -71,29 +71,33 @@ async def get_checklist(request: Request):
     """
     Get checklist for device's patient
     
-    If no checklist exists, creates default one for current patient
+    Uses cached checklist if available. If no checklist exists, creates default one for current patient.
+    Optimized to avoid repeated patient file reads.
     """
     device_id = get_device_id(request)
-    checklist = database.get_checklist(device_id)
-    if not checklist:
-        # Get patient to create checklist for
-        patient = database.get_patient(device_id)
-        if not patient:
-            raise HTTPException(status_code=404, detail="No patient found")
-        
-        # Create default checklist
-        new_checklist = create_default_checklist(patient.get('id'))
-        new_checklist.id = str(uuid.uuid4())
-        
-        # Prepare checklist data for storage
-        checklist_data = convert_checklist_datetimes(new_checklist.model_dump())
-        
-        # Save checklist
-        database.save_checklist(checklist_data, device_id)
-        
-        return new_checklist
     
-    return checklist
+    # Check cache first (fast path)
+    checklist = database.get_checklist(device_id)
+    if checklist:
+        return checklist
+    
+    # Checklist doesn't exist - create default one
+    # Get patient (uses cache, so no extra file read if patient was already loaded)
+    patient = database.get_patient(device_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="No patient found")
+    
+    # Create default checklist
+    new_checklist = create_default_checklist(patient.get('id'))
+    new_checklist.id = str(uuid.uuid4())
+    
+    # Prepare checklist data for storage
+    checklist_data = convert_checklist_datetimes(new_checklist.model_dump())
+    
+    # Save checklist (this also updates the cache)
+    database.save_checklist(checklist_data, device_id)
+    
+    return new_checklist
 
 
 @router.post("/checklist", response_model=TransplantChecklist)

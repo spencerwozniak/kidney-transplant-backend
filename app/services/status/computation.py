@@ -45,6 +45,13 @@ def determine_pathway_stage(
     Returns:
         Pathway stage string: 'identification', 'referral', 'evaluation', 'selection', 'transplantation', 'post-transplant'
     """
+    # BEFORE questionnaire completion: Always return 'identification' (neutral state)
+    # This prevents premature CKD/ESRD language or eligibility messaging
+    # The frontend should not show any clinical assessment until questionnaire is completed
+    if not has_questionnaire:
+        return 'identification'
+    
+    # AFTER questionnaire completion: Proceed with normal pathway logic
     # Stage 1: Identification & Awareness - Patient does not have CKD/ESRD
     # If patient doesn't have CKD or ESRD, they're still in identification/awareness stage
     if patient:
@@ -56,16 +63,6 @@ def determine_pathway_stage(
     has_referral = None
     if patient:
         has_referral = patient.get('has_referral')
-    
-    # Stage 3: Evaluation - Patient has referral but no questionnaire yet
-    # If has_referral is True and no questionnaire, they're in evaluation stage
-    # (they have a referral, so they can start the evaluation process)
-    if not has_questionnaire and has_referral is True:
-        return 'evaluation'
-    
-    # Stage 1: Identification & Awareness - Patient exists but no questionnaire and no referral
-    if not has_questionnaire:
-        return 'identification'
     
     # Stage 2: Referral - Patient does not have a referral yet
     # Only advance past referral stage if has_referral is explicitly True
@@ -261,31 +258,36 @@ def create_initial_status(patient_id: str, device_id: str) -> PatientStatus:
     """
     Create initial patient status when no questionnaire exists yet
     
-    This is used after patient onboarding to set an initial pathway stage
-    based on patient data (e.g., has_referral status)
+    This is used after patient onboarding to set a neutral initial pathway stage.
+    BEFORE questionnaire completion, the status should be neutral to prevent premature
+    clinical messaging (e.g., "Qualifies for Transplant Evaluation").
     
     Args:
         patient_id: Patient ID this status is associated with
         device_id: Device ID to get patient/checklist data
     
     Returns:
-        PatientStatus object with initial pathway stage (no contraindications yet)
+        PatientStatus object with initial pathway stage='identification' (neutral state)
+        - No contraindications (has_absolute=False, has_relative=False)
+        - pathway_stage='identification' (indicates assessment not yet completed)
+        - Frontend should show "Need more info / complete assessment" messaging
     """
-    # Get patient data to determine initial stage
+    # Get patient data (for potential future use, but not used for initial stage)
     patient = database.get_patient(device_id)
     checklist = database.get_checklist(device_id)
     
-    # Determine pathway stage (no questionnaire yet)
+    # Determine pathway stage (no questionnaire yet) - always returns 'identification'
     pathway_stage = determine_pathway_stage(has_questionnaire=False, checklist=checklist, patient=patient)
     
     # Create initial status with no contraindications
+    # This neutral state prevents premature CKD/ESRD language or eligibility messaging
     status = PatientStatus(
         patient_id=patient_id,
         has_absolute=False,
         has_relative=False,
         absolute_contraindications=[],
         relative_contraindications=[],
-        pathway_stage=pathway_stage,
+        pathway_stage=pathway_stage,  # Will be 'identification' when no questionnaire exists
     )
     
     return status
