@@ -19,6 +19,53 @@ from app.api.utils import get_device_id
 router = APIRouter()
 
 
+def is_scanned_pdf(path: str, min_chars: int = 10) -> bool:
+    """
+    Determine if a PDF is scanned (image-based) or text-based
+    
+    Args:
+        path: Path to the PDF file
+        min_chars: Minimum number of characters to consider it text-based
+    
+    Returns:
+        True if scanned PDF, False if text-based PDF
+    """
+    try:
+        import pdfplumber
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text and len(text.strip()) >= min_chars:
+                    return False  # text-based PDF
+        return True  # scanned PDF
+    except Exception:
+        # If pdfplumber fails or file is invalid, treat as scanned
+        return True
+
+
+def pdf_to_string(path: str) -> str:
+    """
+    Extract text from a text-based PDF
+    
+    Args:
+        path: Path to the PDF file
+    
+    Returns:
+        Extracted text as a string
+    """
+    try:
+        import pdfplumber
+        text = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text.append(page_text)
+        return "\n".join(text)
+    except Exception:
+        return "Uploaded document does not contain text"
+
+
 @router.get("/checklist", response_model=TransplantChecklist)
 async def get_checklist(request: Request):
     """
@@ -205,6 +252,33 @@ async def upload_checklist_item_document(
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Extract text from PDF or create placeholder for images/scanned PDFs
+    text_file_path = file_path.with_name(file_path.name + '.txt')
+    try:
+        if file_extension == '.pdf':
+            # Check if PDF is text-based or scanned
+            if is_scanned_pdf(str(file_path)):
+                # Scanned PDF - save placeholder text
+                with open(text_file_path, "w", encoding="utf-8") as text_file:
+                    text_file.write("Uploaded document does not contain text")
+            else:
+                # Text-based PDF - extract text
+                extracted_text = pdf_to_string(str(file_path))
+                with open(text_file_path, "w", encoding="utf-8") as text_file:
+                    text_file.write(extracted_text)
+        else:
+            # Image file - save placeholder text
+            with open(text_file_path, "w", encoding="utf-8") as text_file:
+                text_file.write("Uploaded document does not contain text")
+    except Exception as e:
+        # If text extraction fails, still save placeholder
+        try:
+            with open(text_file_path, "w", encoding="utf-8") as text_file:
+                text_file.write("Uploaded document does not contain text")
+        except Exception:
+            # If even placeholder fails, continue without text file
+            pass
     
     # Create relative path for storage (relative to data/documents)
     relative_path = f"documents/{patient_id}/{item_id}/{safe_filename}"
