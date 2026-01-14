@@ -15,6 +15,7 @@ from app.services.checklist.initialization import create_default_checklist
 from app.services.utils import convert_checklist_datetimes, convert_datetime_to_iso
 from app.services.status.computation import recompute_pathway_stage
 from app.api.utils import get_device_id
+from app.services.ai.image_detection import process_image_file, process_scanned_pdf_with_openai
 
 router = APIRouter()
 
@@ -64,6 +65,8 @@ def pdf_to_string(path: str) -> str:
         return "\n".join(text)
     except Exception:
         return "Uploaded document does not contain text"
+
+
 
 
 @router.get("/checklist", response_model=TransplantChecklist)
@@ -257,31 +260,34 @@ async def upload_checklist_item_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
-    # Extract text from PDF or create placeholder for images/scanned PDFs
+    # Extract text from PDF or images using OpenAI Vision API
     text_file_path = file_path.with_name(file_path.name + '.txt')
     try:
         if file_extension == '.pdf':
             # Check if PDF is text-based or scanned
             if is_scanned_pdf(str(file_path)):
-                # Scanned PDF - save placeholder text
+                # Scanned PDF - use OpenAI Vision API to extract text
+                extracted_text = process_scanned_pdf_with_openai(str(file_path))
                 with open(text_file_path, "w", encoding="utf-8") as text_file:
-                    text_file.write("Uploaded document does not contain text")
+                    text_file.write(extracted_text)
             else:
-                # Text-based PDF - extract text
+                # Text-based PDF - extract text directly
                 extracted_text = pdf_to_string(str(file_path))
                 with open(text_file_path, "w", encoding="utf-8") as text_file:
                     text_file.write(extracted_text)
         else:
-            # Image file - save placeholder text
+            # Image file - use OpenAI Vision API to extract text or generate description
+            extracted_text = process_image_file(str(file_path))
             with open(text_file_path, "w", encoding="utf-8") as text_file:
-                text_file.write("Uploaded document does not contain text")
+                text_file.write(extracted_text)
     except Exception as e:
-        # If text extraction fails, still save placeholder
+        # If text extraction fails, save error message or placeholder
         try:
+            error_message = f"Failed to extract text: {str(e)}"
             with open(text_file_path, "w", encoding="utf-8") as text_file:
-                text_file.write("Uploaded document does not contain text")
+                text_file.write(error_message)
         except Exception:
-            # If even placeholder fails, continue without text file
+            # If even error message fails, continue without text file
             pass
     
     # Create relative path for storage (relative to data/documents)
