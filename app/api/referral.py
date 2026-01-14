@@ -10,8 +10,10 @@ import math
 from pathlib import Path
 
 from app.database import storage as database
-from app.database.schemas import PatientReferralState
+from app.database.schemas import PatientReferralState, PatientStatus
 from app.api.utils import get_device_id
+from app.services.status.computation import recompute_pathway_stage
+from app.services.utils import convert_datetime_to_iso
 
 router = APIRouter()
 
@@ -418,6 +420,14 @@ async def update_referral_state(state: Dict[str, Any], request: Request):
     if 'has_referral' in state:
         patient['has_referral'] = state['has_referral']
         database.save_patient(patient, device_id)
+        
+        # Recompute pathway stage since has_referral affects pathway progression
+        status_data = database.get_patient_status(device_id)
+        if status_data:
+            status = PatientStatus(**status_data)
+            status = recompute_pathway_stage(status, device_id)
+            status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
+            database.save_patient_status(status_data_updated, device_id)
     
     return state
 
