@@ -242,16 +242,12 @@ async def find_nearby_centers(
     centers = load_transplant_centers()
     patient = database.get_patient(device_id) if device_id else None
     
-    # Get patient location
+    # Get patient location - prioritize explicit state parameter
     patient_state = state
     patient_lat = lat
     patient_lng = lng
     
-    # If zip_code is provided but state is not, derive state from zip
-    if zip_code and not patient_state:
-        patient_state = derive_state_from_zip(zip_code)
-    
-    # Try to get from patient referral state if still not available
+    # Try to get from patient referral state if state not explicitly provided
     if not patient_state and patient and device_id:
         referral_state = database.get_patient_referral_state(device_id)
         if referral_state:
@@ -262,9 +258,18 @@ async def find_nearby_centers(
             if not patient_lng:
                 patient_lng = location.get('lng')
     
-    # If still no state, return empty list instead of 400 (graceful degradation)
+    # If zip_code is provided but state is still not available, derive state from zip
+    if zip_code and not patient_state:
+        patient_state = derive_state_from_zip(zip_code)
+    
+    # If still no state, raise error like the old code did (helps with debugging)
     if not patient_state:
-        return []
+        raise HTTPException(status_code=400, detail="State or location required. Please provide state parameter, zip_code, or set location in referral state.")
+    
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Finding centers for state={patient_state}, zip_code={zip_code}, centers_count={len(centers)}")
     
     results = []
     
