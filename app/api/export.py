@@ -655,16 +655,44 @@ def format_context_for_clinical_summary(context: Dict[str, Any]) -> str:
     """
     sections = []
     
-    # Patient Demographics
-    patient = context.get("patient_summary", {})
-    if patient:
+    # Patient Demographics - Include all patient information
+    patient_info = context.get("patient_info", {})
+    patient_summary = context.get("patient_summary", {})
+    patient_details = context.get("patient_details", {})
+    
+    if patient_info or patient_summary:
         patient_lines = []
-        if patient.get("has_ckd_esrd"):
+        
+        # Basic demographics
+        if patient_info.get("name"):
+            patient_lines.append(f"Name: {patient_info.get('name')}")
+        if patient_info.get("date_of_birth"):
+            patient_lines.append(f"Date of Birth: {patient_info.get('date_of_birth')}")
+        if patient_info.get("sex"):
+            patient_lines.append(f"Sex: {patient_info.get('sex')}")
+        if patient_info.get("height_cm"):
+            patient_lines.append(f"Height: {patient_info.get('height_cm')} cm")
+        if patient_info.get("weight_kg"):
+            patient_lines.append(f"Weight: {patient_info.get('weight_kg')} kg")
+        if patient_info.get("email"):
+            patient_lines.append(f"Email: {patient_info.get('email')}")
+        if patient_info.get("phone"):
+            patient_lines.append(f"Phone: {patient_info.get('phone')}")
+        
+        # Clinical information
+        if patient_summary.get("has_ckd_esrd"):
             patient_lines.append("Diagnosis: CKD/ESRD confirmed")
-        if patient.get("last_gfr") is not None:
-            patient_lines.append(f"Last GFR: {patient.get('last_gfr')} mL/min/1.73m²")
-        if patient.get("has_referral"):
+        if patient_summary.get("last_gfr") is not None:
+            patient_lines.append(f"Last GFR: {patient_summary.get('last_gfr')} mL/min/1.73m²")
+        if patient_summary.get("has_referral"):
             patient_lines.append("Has existing referral")
+        
+        # Additional details from patient_details (age, BMI if available)
+        if patient_details.get("age_years"):
+            patient_lines.append(f"Age: {patient_details.get('age_years')} years")
+        if patient_details.get("bmi"):
+            patient_lines.append(f"BMI: {patient_details.get('bmi')}")
+        
         if patient_lines:
             sections.append("PATIENT INFORMATION:\n" + "\n".join(patient_lines))
     
@@ -820,36 +848,98 @@ async def generate_clinical_summary_stream(patient_id: str, device_id: str, mode
     context_str = format_context_for_clinical_summary(context)
     
     # Build system prompt for clinical summary
-    system_prompt = """You are a medical documentation assistant helping to create a comprehensive clinical summary for a kidney transplant evaluation patient.
+    system_prompt = """You are a medical documentation assistant generating a clinician-facing clinical summary
+for a kidney transplant evaluation patient.
 
-Your task is to generate a clear, professional clinical summary document that can be shared with healthcare providers and transplant centers.
+Your role is to transform structured healthcare data (FHIR resources, questionnaires,
+and uploaded documents) into a clear, trustworthy, and decision-oriented clinical summary
+that a physician or transplant committee can quickly understand and act on.
 
-Guidelines:
-- Write in a professional, clinical tone suitable for medical documentation
-- Organize information clearly with appropriate sections
-- Include all relevant clinical information from the provided context
-- Be concise but comprehensive
-- Use standard medical terminology
-- Do NOT provide medical advice, diagnoses, or treatment recommendations
-- Focus on factual information from the patient's data
-- Format the summary as a clean, readable document with clear sections
-- Include relevant details from uploaded documents when available"""
+Core principles:
+- Prioritize clinical clarity and speed of comprehension (designed to be understood in under 60 seconds)
+- Organize content according to how clinicians think and review cases
+- Distinguish between summarized interpretation and source data
+- Preserve provenance and clinical context
+- Use concise, professional medical language
+- Use standard medical terminology and abbreviations where appropriate
+- Do NOT introduce new diagnoses, recommendations, or medical advice
+- Do NOT speculate or infer beyond the provided data
+- Clearly label patient-reported data vs clinician-documented findings
+- Maintain a neutral, objective, and professional tone
+
+The output must read like a real clinical handoff or referral summary that a provider
+would trust and want to receive.
+
+Format the document as a structured, skimmable clinical summary with clear section headers,
+bullet points, and short paragraphs."""
 
     # Build user prompt
-    user_prompt = f"""Generate a comprehensive clinical summary document for this patient based on the following information:
+    user_prompt = f"""Generate a clinician-ready clinical summary document for this patient using the information below:
 
 {context_str}
 
-Please create a well-structured clinical summary document that includes:
-1. Patient Demographics and Clinical Status
-2. Current Pathway Stage and Progress
-3. Medical Status and Contraindications
-4. Pre-transplant Checklist Progress
-5. Relevant Information from Uploaded Documents
-6. Referral Status
-7. Financial Assessment Status (if applicable)
 
-Format the summary as a professional medical document that can be easily shared with healthcare providers."""
+
+Structure the document in the following order and format:
+
+---
+
+### Clinical Summary
+Provide a concise, clinically written paragraph summarizing:
+- Primary condition and relevant comorbidities
+- Dialysis status and tolerance
+- Key negative findings (absence of contraindications, symptoms, or complications)
+- Current transplant evaluation status
+
+This section should be readable on its own and suitable for referral or committee review.
+
+---
+
+### Active Medical Problems & Key Findings
+List:
+- Primary diagnosis
+- Relevant comorbid conditions
+- Pertinent objective findings from observations or assessments
+
+Use bullet points. Do not repeat narrative text.
+
+---
+
+### Transplant Eligibility & Contraindication Screening
+Summarize patient-reported or documented contraindication screening results
+in a clear, structured format (table or bullet list), including:
+- Medical
+- Psychiatric
+- Social
+- Compliance-related factors
+
+Clearly indicate negative findings.
+
+---
+
+### Assessment & Plan
+Summarize the documented assessment and plan exactly as provided in the source material.
+Do NOT add recommendations or clinical opinions.
+
+---
+
+### Export Information
+Include:
+- Statement that the summary is patient-authorized
+- Source of data (structured FHIR data, questionnaires, uploaded documents)
+- Date generated
+- Available formats (e.g., human-readable summary, structured export)
+
+---
+
+Formatting requirements:
+- Use clear section headers
+- Favor bullet points over long paragraphs
+- Avoid redundancy
+- Maintain a professional clinical tone
+- Do not include disclaimers or medical advice
+
+The final document should resemble a real-world transplant referral or inter-provider handoff."""
 
     try:
         client = get_openai_client()
@@ -876,87 +966,6 @@ Format the summary as a professional medical document that can be easily shared 
             status_code=500,
             detail=f"Failed to generate clinical summary: {str(e)}"
         )
-
-
-def generate_clinical_summary(patient_id: str, device_id: str, model: str = "gpt-5.1") -> str:
-    """
-    Generate a clinical summary document using OpenAI
-    
-    Args:
-        patient_id: Patient ID
-        device_id: Device ID to get patient data
-        model: OpenAI model to use (default: gpt-5.1)
-        
-    Returns:
-        Generated clinical summary text
-    """
-    if not is_ai_enabled():
-        raise HTTPException(
-            status_code=503,
-            detail="AI features are not enabled. OPENAI_API_KEY environment variable not set."
-        )
-    
-    # Build patient context (reuse from AI service)
-    context = build_patient_context(patient_id, device_id)
-    
-    # Format context for summary generation
-    context_str = format_context_for_clinical_summary(context)
-    
-    # Build system prompt for clinical summary
-    system_prompt = """You are a medical documentation assistant helping to create a comprehensive clinical summary for a kidney transplant evaluation patient.
-
-Your task is to generate a clear, professional clinical summary document that can be shared with healthcare providers and transplant centers.
-
-Guidelines:
-- Write in a professional, clinical tone suitable for medical documentation
-- Organize information clearly with appropriate sections
-- Include all relevant clinical information from the provided context
-- Be concise but comprehensive
-- Use standard medical terminology
-- Do NOT provide medical advice, diagnoses, or treatment recommendations
-- Focus on factual information from the patient's data
-- Format the summary as a clean, readable document with clear sections
-- Include relevant details from uploaded documents when available"""
-
-    # Build user prompt
-    user_prompt = f"""Generate a comprehensive clinical summary document for this patient based on the following information:
-
-{context_str}
-
-Please create a well-structured clinical summary document that includes:
-1. Patient Demographics and Clinical Status
-2. Current Pathway Stage and Progress
-3. Medical Status and Contraindications
-4. Pre-transplant Checklist Progress
-5. Relevant Information from Uploaded Documents
-6. Referral Status
-7. Financial Assessment Status (if applicable)
-
-Format the summary as a professional medical document that can be easily shared with healthcare providers."""
-
-    try:
-        client = get_openai_client()
-        
-        # Use standard OpenAI Chat Completions API
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.3,  # Lower temperature for more consistent, factual output
-            max_tokens=2000  # Allow for comprehensive summary
-        )
-        
-        summary = response.choices[0].message.content.strip()
-        return summary
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate clinical summary: {str(e)}"
-        )
-
 
 @router.get("/patients/fhir")
 async def export_patient_fhir(request: Request):
@@ -1136,57 +1145,3 @@ async def export_clinical_summary_stream(request: Request, model: Optional[str] 
             "Connection": "keep-alive",
         }
     )
-
-
-@router.get("/patients/clinical-summary")
-async def export_clinical_summary(request: Request, model: Optional[str] = None):
-    """
-    Generate and export a comprehensive clinical summary document using AI
-    
-    This endpoint generates a professional clinical summary document that encompasses
-    all patient data including demographics, medical status, checklist progress,
-    uploaded documents (extracted text), referral status, and financial profile.
-    
-    The summary is generated using OpenAI gpt-5.1 and is formatted as a clean,
-    shareable document suitable for healthcare providers and transplant centers.
-    
-    Args:
-        request: FastAPI request object (used to get device_id)
-        model: Optional OpenAI model name (defaults to gpt-5.1)
-        
-    Returns:
-        JSON response with the generated clinical summary
-    """
-    device_id = get_device_id(request)
-    
-    # Verify patient exists
-    patient_data = database.get_patient(device_id)
-    if not patient_data:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    
-    patient_id = patient_data.get('id')
-    
-    # Use provided model or default
-    model_name = model or get_default_model()
-    
-    # Generate clinical summary
-    try:
-        summary = generate_clinical_summary(patient_id, device_id, model_name)
-        
-        return JSONResponse(
-            content={
-                "summary": summary,
-                "generated_at": datetime.now().isoformat(),
-                "patient_id": patient_id,
-                "model": model_name
-            },
-            media_type="application/json"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate clinical summary: {str(e)}"
-        )
-

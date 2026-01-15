@@ -103,6 +103,23 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
             "has_referral": patient.get("has_referral"),
         }
         context["patient_details"] = personal_details
+        
+        # Include all patient fields explicitly to ensure complete information
+        # Handle both height/weight and height_cm/weight_kg formats
+        height_cm = patient.get("height_cm") or patient.get("height")
+        weight_kg = patient.get("weight_kg") or patient.get("weight")
+        
+        context["patient_info"] = {
+            "name": patient.get("name"),
+            "date_of_birth": patient.get("date_of_birth"),
+            "sex": patient.get("sex"),
+            "height": patient.get("height"),
+            "height_cm": height_cm,
+            "weight": patient.get("weight"),
+            "weight_kg": weight_kg,
+            "email": patient.get("email"),
+            "phone": patient.get("phone"),
+        }
     
     # Pathway Stage & Status Summary
     if status_data and isinstance(status_data, dict):
@@ -435,16 +452,47 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
         pathway_content = f"{pathway_stage.upper()} - {stage_desc}"
         sections.append(f"<pathway_stage>\n{pathway_content}\n</pathway_stage>")
 
-    # Personal Details
+    # Personal Details - Use patient_info for complete information
+    patient_info = context.get("patient_info", {})
     details = context.get("patient_details", {})
-    if details:
-        detail_lines = [
-            f"DOB: {details.get('dob') or 'unknown'}",
-            f"Sex assigned at birth: {details.get('sex_assigned_at_birth') or 'unknown'}",
-            f"Height (cm): {details.get('height_cm') if details.get('height_cm') is not None else 'unknown'}",
-            f"Weight (lbs): {details.get('weight_lbs') if details.get('weight_lbs') is not None else 'unknown'}",
-        ]
-        sections.append(f"<personal_details>\n" + "\n".join(detail_lines) + "\n</personal_details>")
+    
+    if patient_info or details:
+        detail_lines = []
+        
+        # Use patient_info if available, otherwise fall back to details
+        name = patient_info.get("name")
+        if name:
+            detail_lines.append(f"Name: {name}")
+        
+        dob = patient_info.get("date_of_birth") or details.get('dob')
+        if dob:
+            detail_lines.append(f"DOB: {dob}")
+        
+        sex = patient_info.get("sex") or details.get('sex_assigned_at_birth')
+        if sex:
+            detail_lines.append(f"Sex assigned at birth: {sex}")
+        
+        height_cm = patient_info.get("height_cm") or details.get('height_cm')
+        if height_cm is not None:
+            detail_lines.append(f"Height (cm): {height_cm}")
+        
+        weight_lbs = details.get('weight_lbs')
+        weight_kg = patient_info.get("weight_kg") or details.get('weight_kg')
+        if weight_lbs is not None:
+            detail_lines.append(f"Weight (lbs): {weight_lbs}")
+        elif weight_kg is not None:
+            detail_lines.append(f"Weight (kg): {weight_kg}")
+        
+        email = patient_info.get("email")
+        if email:
+            detail_lines.append(f"Email: {email}")
+        
+        phone = patient_info.get("phone")
+        if phone:
+            detail_lines.append(f"Phone: {phone}")
+        
+        if detail_lines:
+            sections.append(f"<personal_details>\n" + "\n".join(detail_lines) + "\n</personal_details>")
     
     # Status Summary
     status = context.get("status_summary", {})
