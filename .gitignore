@@ -40,6 +40,7 @@ ENV/
 # Data files (JSON databases)
 data/*
 !data/questions.json
+!data/transplant_centers.json
 
 # Logs
 *.log

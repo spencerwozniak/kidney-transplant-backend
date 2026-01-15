@@ -1,0 +1,80 @@
+[
+  {
+    "center_id": "ucsd_kidney_tx",
+    "name": "UC San Diego Kidney Transplant Program",
+    "location": {
+      "city": "San Diego",
+      "state": "CA",
+      "zip": "92103",
+      "lat": 32.8801,
+      "lng": -117.234
+    },
+    "accepts_referrals_from": ["CA", "AZ"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(858) 657-7000",
+      "referral_fax": "(858) 657-7001",
+      "website": "https://health.ucsd.edu/specialties/transplant"
+    }
+  },
+  {
+    "center_id": "ucla_kidney_tx",
+    "name": "UCLA Kidney Transplant Program",
+    "location": {
+      "city": "Los Angeles",
+      "state": "CA",
+      "zip": "90095",
+      "lat": 34.0689,
+      "lng": -118.4452
+    },
+    "accepts_referrals_from": ["CA", "NV"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(310) 825-6836",
+      "referral_fax": "(310) 825-6837",
+      "website": "https://www.uclahealth.org/transplant"
+    }
+  },
+  {
+    "center_id": "cedars_sinai_kidney_tx",
+    "name": "Cedars-Sinai Kidney Transplant Program",
+    "location": {
+      "city": "Los Angeles",
+      "state": "CA",
+      "zip": "90048",
+      "lat": 34.0756,
+      "lng": -118.3833
+    },
+    "accepts_referrals_from": ["CA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(310) 423-4444",
+      "referral_fax": "(310) 423-4445",
+      "website": "https://www.cedars-sinai.org/programs/transplant"
+    }
+  }
+]

@@ -82,6 +82,23 @@ Minimal backend for demo with single patient support:
   - Uses latest answer per question (latest submission wins)
   - Returns current pathway stage based on patient data and checklist completion
 
+### Financial Assessment
+
+- `POST /api/v1/finance/profile` - Create or update financial profile
+- `GET /api/v1/finance/profile` - Get financial profile for current patient
+
+### Referral
+
+- `GET /api/v1/referral/centers` - Get list of transplant centers
+- `POST /api/v1/referral/state` - Create or update referral state
+- `GET /api/v1/referral/state` - Get referral state for current patient
+
+### AI Assistant
+
+- `POST /api/v1/ai-assistant/query` - Query the AI assistant
+- `GET /api/v1/ai-assistant/status` - Check AI configuration status
+- `GET /api/v1/ai-assistant/context` - Get patient context (debug)
+
 ---
 
 ## Tech Stack
@@ -105,36 +122,44 @@ kidney-transplant-backend/
 │   ├── api/
 │   │   ├── __init__.py         # Router aggregation
 │   │   ├── patients.py         # Patient endpoints
-│   │   ├── questionnaire.py    # Questionnaire endpoints
+│   │   ├── questionnaire.py   # Questionnaire endpoints
 │   │   ├── checklist.py        # Checklist endpoints
-│   │   └── status.py           # Patient status endpoints
+│   │   ├── status.py           # Patient status endpoints
+│   │   ├── finance.py          # Financial assessment endpoints
+│   │   ├── referral.py         # Referral endpoints
+│   │   ├── ai.py               # AI assistant API endpoints
+│   │   ├── middleware.py       # API middleware
+│   │   └── utils.py            # API utility functions
 │   ├── core/
 │   │   └── config.py           # CORS origins configuration
 │   ├── database/
 │   │   ├── schemas.py          # Pydantic data models (renamed from 'models' to avoid confusion with AI models)
-│   │   └── storage.py          # JSON file read/write functions and data persistence operations
+│   │   ├── storage.py          # JSON file read/write functions and data persistence operations
+│   │   └── cache.py            # In-memory cache with TTL for storage layer
 │   ├── services/
 │   │   ├── ai/
 │   │   │   ├── config.py       # AI/LLM configuration (API keys, client setup)
-│   │   │   └── service.py      # AI assistant service (prompt building, LLM interaction)
+│   │   │   ├── service.py      # AI assistant service (prompt building, LLM interaction)
+│   │   │   └── image_detection.py  # Image detection and text extraction using OpenAI Vision API
 │   │   ├── checklist/
 │   │   │   └── initialization.py  # Default checklist creation
 │   │   ├── status/
 │   │   │   └── computation.py     # Status computation from questionnaire
 │   │   └── utils.py                # Utility functions
-│   └── api/
-│       ├── ai.py                # AI assistant API endpoints
-│       ├── patients.py          # Patient endpoints
-│       ├── questionnaire.py     # Questionnaire endpoints
-│       ├── checklist.py         # Checklist endpoints
-│       ├── status.py            # Patient status endpoints
-│       ├── finance.py           # Financial assessment endpoints
-│       └── referral.py          # Referral endpoints
 ├── data/                       # Auto-created JSON files (gitignored)
-│   ├── patient.json            # Single patient data
-│   ├── questionnaire.json      # Questionnaire submissions
-│   ├── checklist.json          # Pre-transplant checklist
-│   └── patient_status.json     # Computed patient status
+│   ├── patients/               # Per-patient data directories
+│   ├── questionnaires/         # Questionnaire submissions
+│   ├── checklists/            # Pre-transplant checklists
+│   ├── patient_status/        # Computed patient status
+│   ├── financial_profiles/    # Financial assessment data
+│   ├── patient_referral_states/  # Referral state data
+│   ├── documents/             # Uploaded documents
+│   ├── patient.json           # Legacy single patient data (deprecated)
+│   ├── questionnaire.json     # Legacy questionnaire data (deprecated)
+│   ├── checklist.json         # Legacy checklist data (deprecated)
+│   ├── patient_status.json    # Legacy status data (deprecated)
+│   ├── questions.json         # Question definitions (tracked in git)
+│   └── transplant_centers.json  # Transplant center data (tracked in git)
 ├── tests/                      # Test suite
 ├── requirements.txt
 ├── run.py                      # Dev server: uvicorn app.main:app --reload
@@ -188,6 +213,11 @@ This organization ensures:
 - `questionnaire.py` - Questionnaire submission and status computation
 - `checklist.py` - Checklist management and item updates
 - `status.py` - Patient status retrieval
+- `finance.py` - Financial assessment endpoints
+- `referral.py` - Referral and transplant center endpoints
+- `ai.py` - AI assistant endpoints
+- `middleware.py` - API middleware
+- `utils.py` - API utility functions
 
 **`app/database/storage.py`** - Data storage operations
 
@@ -198,6 +228,12 @@ This organization ensures:
 - `save_patient_status()` / `get_patient_status()` - Status operations
 - `save_financial_profile()` / `get_financial_profile()` - Financial profile operations
 - `save_patient_referral_state()` / `get_patient_referral_state()` - Referral state operations
+
+**`app/database/cache.py`** - In-memory caching layer
+
+- `TTLCache` - Thread-safe in-memory cache with TTL (Time To Live)
+- Reduces file I/O for frequently accessed data
+- Global cache instances for patient, checklist, status, etc.
 
 **`app/database/schemas.py`** - Pydantic data models
 
@@ -224,6 +260,13 @@ This organization ensures:
 - `build_user_prompt()` - Combines user query with patient context
 - `call_llm()` - Interfaces with LLM providers (OpenAI implemented)
 - `get_ai_response()` - Main entry point for getting AI responses
+
+**`app/services/ai/image_detection.py`** - Image processing service
+
+- `encode_image_to_base64()` - Encode image files to base64
+- `process_image_with_openai()` - Process images using OpenAI Vision API
+- Extracts text from images and scanned PDFs
+- Generates descriptions of image content
 
 **`app/api/ai.py`** - AI assistant API endpoints
 
@@ -323,12 +366,24 @@ Pathway stages progress based on patient data:
 
 JSON files in `data/` directory (auto-created, gitignored):
 
-- `patient.json` - Single patient (array with one object, overwritten on save)
-- `questionnaire.json` - Array of questionnaire submissions (appended, all submissions retained)
-- `checklist.json` - Single checklist (array with one object, overwritten on save)
-- `patient_status.json` - Single patient status (array with one object, overwritten on save)
-- `questions.json` - Question definitions (tracked in git, contains question categories and text)
+**Per-patient data structure:**
+- `data/patients/{patient_id}.json` - Patient data
+- `data/questionnaires/{patient_id}.json` - Questionnaire submissions for patient
+- `data/checklists/{patient_id}.json` - Pre-transplant checklist for patient
+- `data/patient_status/{patient_id}.json` - Computed patient status
+- `data/financial_profiles/{patient_id}.json` - Financial assessment data
+- `data/patient_referral_states/{patient_id}.json` - Referral state data
 - `data/documents/{patient_id}/{item_id}/` - Uploaded documents for checklist items
+
+**Shared data (tracked in git):**
+- `data/questions.json` - Question definitions (contains question categories and text)
+- `data/transplant_centers.json` - Transplant center data
+
+**Legacy files (deprecated, single-patient mode):**
+- `data/patient.json` - Legacy single patient data
+- `data/questionnaire.json` - Legacy questionnaire data
+- `data/checklist.json` - Legacy checklist data
+- `data/patient_status.json` - Legacy status data
 
 **Storage Functions:**
 

@@ -10,8 +10,10 @@ import math
 from pathlib import Path
 
 from app.database import storage as database
-from app.database.schemas import PatientReferralState
+from app.database.schemas import PatientReferralState, PatientStatus
 from app.api.utils import get_device_id
+from app.services.status.computation import recompute_pathway_stage
+from app.services.utils import convert_datetime_to_iso
 
 router = APIRouter()
 
@@ -240,16 +242,12 @@ async def find_nearby_centers(
     centers = load_transplant_centers()
     patient = database.get_patient(device_id) if device_id else None
     
-    # Get patient location
+    # Get patient location - prioritize explicit state parameter
     patient_state = state
     patient_lat = lat
     patient_lng = lng
     
-    # If zip_code is provided but state is not, derive state from zip
-    if zip_code and not patient_state:
-        patient_state = derive_state_from_zip(zip_code)
-    
-    # Try to get from patient referral state if still not available
+    # Try to get from patient referral state if state not explicitly provided
     if not patient_state and patient and device_id:
         referral_state = database.get_patient_referral_state(device_id)
         if referral_state:
@@ -260,9 +258,18 @@ async def find_nearby_centers(
             if not patient_lng:
                 patient_lng = location.get('lng')
     
-    # If still no state, return empty list instead of 400 (graceful degradation)
+    # If zip_code is provided but state is still not available, derive state from zip
+    if zip_code and not patient_state:
+        patient_state = derive_state_from_zip(zip_code)
+    
+    # If still no state, raise error like the old code did (helps with debugging)
     if not patient_state:
-        return []
+        raise HTTPException(status_code=400, detail="State or location required. Please provide state parameter, zip_code, or set location in referral state.")
+    
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Finding centers for state={patient_state}, zip_code={zip_code}, centers_count={len(centers)}")
     
     results = []
     
@@ -418,6 +425,14 @@ async def update_referral_state(state: Dict[str, Any], request: Request):
     if 'has_referral' in state:
         patient['has_referral'] = state['has_referral']
         database.save_patient(patient, device_id)
+        
+        # Recompute pathway stage since has_referral affects pathway progression
+        status_data = database.get_patient_status(device_id)
+        if status_data:
+            status = PatientStatus(**status_data)
+            status = recompute_pathway_stage(status, device_id)
+            status_data_updated = convert_datetime_to_iso(status.model_dump(), ['updated_at'])
+            database.save_patient_status(status_data_updated, device_id)
     
     return state
 
