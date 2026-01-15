@@ -9,14 +9,28 @@ from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel, Field
 import json
+import os
 
 from app.database import storage as database
-from app.services.ai.service import get_ai_response, get_ai_response_stream, build_patient_context
+from app.services.ai.service import (
+    get_ai_response,
+    get_ai_response_stream,
+    build_patient_context,
+    build_prediction_features,
+)
 from app.services.ai.config import is_ai_enabled
 from app.api.utils import get_device_id
 
 
 router = APIRouter()
+
+def _is_debug_allowed(request: Request) -> bool:
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    if environment in {"production", "prod"}:
+        token = os.getenv("INTERNAL_DEBUG_TOKEN", "")
+        header_token = request.headers.get("X-Internal-Debug", "")
+        return bool(token) and header_token == token
+    return True
 
 
 class AIQueryRequest(BaseModel):
@@ -30,10 +44,11 @@ class AIQueryResponse(BaseModel):
     """Response model for AI assistant query"""
     response: str         = Field(..., description="AI assistant's response")
     context_summary: dict = Field(..., description="Summary of patient context used")
+    debug_features: Optional[dict] = Field(None, description="Debug feature payload for prediction")
 
 
 @router.post("/ai-assistant/query", response_model=AIQueryResponse)
-async def query_ai_assistant(request_body: AIQueryRequest, request: Request):
+async def query_ai_assistant(request_body: AIQueryRequest, request: Request, debug_features: bool = False):
     """
     Query the AI assistant about patient's transplant journey
     
@@ -77,9 +92,16 @@ async def query_ai_assistant(request_body: AIQueryRequest, request: Request):
             "has_referral": context.get("referral_information", {}).get("has_referral")
         }
         
+        debug_payload = None
+        if debug_features:
+            if not _is_debug_allowed(request):
+                raise HTTPException(status_code=403, detail="debug_features is not allowed")
+            debug_payload = build_prediction_features(patient_id, device_id)
+
         return AIQueryResponse(
             response=response,
-            context_summary=context_summary
+            context_summary=context_summary,
+            debug_features=debug_payload
         )
     
     except ValueError as e:
@@ -95,6 +117,30 @@ async def query_ai_assistant(request_body: AIQueryRequest, request: Request):
         error_detail = f"AI service error: {str(e)}"
         print(f"[AI API Error] {error_detail}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=error_detail)
+
+
+@router.get("/ai-assistant/prediction")
+async def get_prediction_input(request: Request, debug_features: bool = False):
+    """
+    Return the structured feature input used for predictions/AI context.
+    """
+    device_id = get_device_id(request)
+    patient = database.get_patient(device_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    patient_id = patient.get("id")
+    if debug_features and not _is_debug_allowed(request):
+        raise HTTPException(status_code=403, detail="debug_features is not allowed")
+
+    payload = build_prediction_features(patient_id, device_id)
+    if not debug_features:
+        payload = {"features": payload.get("features")}
+
+    return {
+        "patient_id": patient_id,
+        **payload
+    }
 
 
 @router.get("/ai-assistant/context")

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.database import storage as database
 from app.database.schemas import PatientStatus
+from app.services.patient_details import extract_personal_details
 
 
 def read_document_text(document_path: str) -> Optional[str]:
@@ -95,11 +96,13 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
     
     # Patient Summary
     if patient and isinstance(patient, dict):
+        personal_details, _ = extract_personal_details(patient)
         context["patient_summary"] = {
             "has_ckd_esrd": patient.get("has_ckd_esrd"),
             "last_gfr": patient.get("last_gfr"),
             "has_referral": patient.get("has_referral"),
         }
+        context["patient_details"] = personal_details
     
     # Pathway Stage & Status Summary
     if status_data and isinstance(status_data, dict):
@@ -336,6 +339,74 @@ def build_patient_context(patient_id: str, device_id: str) -> Dict[str, Any]:
     return context
 
 
+def _get_latest_questionnaire_answers(questionnaires: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Latest answer wins across questionnaires (newest submission takes precedence).
+    """
+    if not questionnaires or not isinstance(questionnaires, list):
+        return {}
+
+    def get_sort_key(q: Dict[str, Any]) -> str:
+        submitted_at = q.get("submitted_at")
+        if submitted_at is None:
+            return "0000-00-00T00:00:00"
+        if isinstance(submitted_at, str):
+            return submitted_at
+        if hasattr(submitted_at, "isoformat"):
+            return submitted_at.isoformat()
+        return str(submitted_at)
+
+    questionnaires_sorted = sorted(questionnaires, key=get_sort_key, reverse=True)
+    latest_answers: Dict[str, Any] = {}
+    for questionnaire in questionnaires_sorted:
+        answers = questionnaire.get("answers", {})
+        if isinstance(answers, dict):
+            for question_id, answer in answers.items():
+                if question_id not in latest_answers:
+                    latest_answers[question_id] = answer
+    return latest_answers
+
+
+def build_prediction_features(patient_id: str, device_id: str) -> Dict[str, Any]:
+    """
+    Build the structured feature input for prediction/debugging.
+    """
+    patient = database.get_patient(device_id) or {}
+    personal_details, sources = extract_personal_details(patient)
+
+    questionnaires = database.get_all_questionnaires_for_patient(patient_id, device_id) or []
+    latest_answers = _get_latest_questionnaire_answers(questionnaires)
+
+    features = {
+        "features_version": "v1",
+        "generated_at": datetime.utcnow().isoformat(),
+        "dob": personal_details.get("dob"),
+        "sex_assigned_at_birth": personal_details.get("sex_assigned_at_birth"),
+        "height_cm": personal_details.get("height_cm"),
+        "weight_kg": personal_details.get("weight_kg"),
+        "weight_lbs": personal_details.get("weight_lbs"),
+        "age_years": personal_details.get("age_years"),
+        "bmi": personal_details.get("bmi"),
+        "questionnaire_answers": latest_answers,
+    }
+
+    source_fields = {
+        "dob": sources.get("dob"),
+        "sex_assigned_at_birth": sources.get("sex_assigned_at_birth"),
+        "height_cm": sources.get("height_cm"),
+        "weight_kg": sources.get("weight_kg"),
+        "weight_lbs": sources.get("weight_lbs"),
+        "age_years": sources.get("age_years"),
+        "bmi": sources.get("bmi"),
+        "questionnaire_answers": {"from": "questionnaires", "transform": "latest_answer_wins"},
+    }
+
+    return {
+        "features": features,
+        "source_fields": source_fields,
+    }
+
+
 def format_context_for_prompt(context: Dict[str, Any]) -> str:
     """
     Formats the patient context into a readable string for the AI prompt
@@ -363,6 +434,17 @@ def format_context_for_prompt(context: Dict[str, Any]) -> str:
         stage_desc = stage_descriptions.get(pathway_stage, pathway_stage)
         pathway_content = f"{pathway_stage.upper()} - {stage_desc}"
         sections.append(f"<pathway_stage>\n{pathway_content}\n</pathway_stage>")
+
+    # Personal Details
+    details = context.get("patient_details", {})
+    if details:
+        detail_lines = [
+            f"DOB: {details.get('dob') or 'unknown'}",
+            f"Sex assigned at birth: {details.get('sex_assigned_at_birth') or 'unknown'}",
+            f"Height (cm): {details.get('height_cm') if details.get('height_cm') is not None else 'unknown'}",
+            f"Weight (lbs): {details.get('weight_lbs') if details.get('weight_lbs') is not None else 'unknown'}",
+        ]
+        sections.append(f"<personal_details>\n" + "\n".join(detail_lines) + "\n</personal_details>")
     
     # Status Summary
     status = context.get("status_summary", {})

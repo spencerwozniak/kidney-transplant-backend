@@ -6,28 +6,108 @@ Simple data models
 - Optional fields for flexibility
 - Simple Dict types for questionnaire (can be typed later)
 """
-from typing import Optional, Dict, Any, List
-from datetime import datetime
-from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any, List, Literal
+from datetime import datetime, date
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
-class Patient(BaseModel):
+class PatientCanonical(BaseModel):
     """
-    Patient model
-    
-    CURRENT: Basic intake form fields
+    Canonical patient storage model (persisted to disk)
     """
+    model_config = ConfigDict(extra="ignore")
     id: Optional[str]            = Field(None, description="Patient unique identifier (auto-generated)")
     name: str                    = Field(...,  description="Patient legal name")
     date_of_birth: str           = Field(...,  description="Date of birth (format: YYYY-MM-DD)")
-    sex: Optional[str]           = Field(None, description="Sex assigned at birth (e.g., 'male', 'female')")
-    height: Optional[float]      = Field(None, description="Height in centimeters (cm)")
-    weight: Optional[float]      = Field(None, description="Weight in kilograms (kg)")
+    sex: Optional[Literal["male", "female", "unknown"]] = Field(None, description="Sex assigned at birth")
+    height_cm: Optional[float]   = Field(None, description="Height in centimeters (cm)")
+    weight_kg: Optional[float]   = Field(None, description="Weight in kilograms (kg)")
     email: Optional[str]         = Field(None, description="Email address")
     phone: Optional[str]         = Field(None, description="Phone number")
     has_ckd_esrd: Optional[bool] = Field(None, description="Whether patient has CKD or ESRD")
     last_gfr: Optional[float]    = Field(None, description="Last known GFR (Glomerular Filtration Rate) value")
     has_referral: Optional[bool] = Field(None, description="Whether patient already has a referral to a transplant center")
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value: str) -> str:
+        try:
+            parsed = datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("date_of_birth must be in YYYY-MM-DD format")
+        if parsed > date.today():
+            raise ValueError("date_of_birth cannot be in the future")
+        return value
+
+    @field_validator("height_cm")
+    @classmethod
+    def validate_height_cm(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return value
+        if not (50 <= value <= 250):
+            raise ValueError("height_cm must be between 50 and 250")
+        return value
+
+    @field_validator("weight_kg")
+    @classmethod
+    def validate_weight_kg(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return value
+        if not (20 <= value <= 300):
+            raise ValueError("weight_kg must be between 20 and 300")
+        return value
+
+
+class Patient(BaseModel):
+    """
+    Patient API response model (includes deprecated aliases).
+    """
+    id: Optional[str]            = Field(None, description="Patient unique identifier (auto-generated)")
+    name: str                    = Field(...,  description="Patient legal name")
+    date_of_birth: str           = Field(...,  description="Date of birth (format: YYYY-MM-DD)")
+    sex: Optional[Literal["male", "female", "unknown"]] = Field(None, description="Sex assigned at birth")
+    height_cm: Optional[float]   = Field(None, description="Height in centimeters (cm)")
+    weight_kg: Optional[float]   = Field(None, description="Weight in kilograms (kg)")
+    email: Optional[str]         = Field(None, description="Email address")
+    phone: Optional[str]         = Field(None, description="Phone number")
+    has_ckd_esrd: Optional[bool] = Field(None, description="Whether patient has CKD or ESRD")
+    last_gfr: Optional[float]    = Field(None, description="Last known GFR (Glomerular Filtration Rate) value")
+    has_referral: Optional[bool] = Field(None, description="Whether patient already has a referral to a transplant center")
+    # Deprecated aliases for backward compatibility
+    dob: Optional[str]           = Field(None, description="DEPRECATED: alias for date_of_birth")
+    sex_assigned_at_birth: Optional[str] = Field(None, description="DEPRECATED: alias for sex")
+    height: Optional[float]      = Field(None, description="DEPRECATED: alias for height_cm")
+    weight: Optional[float]      = Field(None, description="DEPRECATED: alias for weight_kg")
+    weight_lbs: Optional[float]  = Field(None, description="DEPRECATED: derived from weight_kg")
+
+
+class PatientInput(BaseModel):
+    """
+    Patient input model (accepts aliases at API boundary)
+    """
+    id: Optional[str]            = Field(None, description="Patient unique identifier (auto-generated)")
+    name: Optional[str]                    = Field(None, description="Patient legal name")
+    date_of_birth: Optional[str]           = Field(None, description="Date of birth (format: YYYY-MM-DD)")
+    dob: Optional[str]                     = Field(None, description="Date of birth (format: YYYY-MM-DD) - alias for date_of_birth")
+    sex: Optional[str]                     = Field(None, description="Sex assigned at birth (e.g., 'male', 'female')")
+    sex_assigned_at_birth: Optional[str]   = Field(None, description="Sex assigned at birth (e.g., 'male', 'female') - alias for sex")
+    height: Optional[float]                = Field(None, description="Height in centimeters (cm) - alias for height_cm")
+    height_cm: Optional[float]             = Field(None, description="Height in centimeters (cm)")
+    weight: Optional[float]                = Field(None, description="Weight in kilograms (kg) - legacy alias for weight_kg")
+    weight_kg: Optional[float]             = Field(None, description="Weight in kilograms (kg)")
+    weight_lbs: Optional[float]            = Field(None, description="Weight in pounds (lbs)")
+    email: Optional[str]                   = Field(None, description="Email address")
+    phone: Optional[str]                   = Field(None, description="Phone number")
+    has_ckd_esrd: Optional[bool]           = Field(None, description="Whether patient has CKD or ESRD")
+    last_gfr: Optional[float]              = Field(None, description="Last known GFR (Glomerular Filtration Rate) value")
+    has_referral: Optional[bool]           = Field(None, description="Whether patient already has a referral to a transplant center")
+
+
+class PatientUpdate(PatientInput):
+    """
+    Patient update model (all fields optional)
+    """
+    pass
 
 
 class QuestionnaireSubmission(BaseModel):

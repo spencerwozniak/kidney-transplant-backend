@@ -505,3 +505,109 @@ def test_latest_answer_wins(client, temp_data_dir, test_headers):
     for contra in status_data2["absolute_contraindications"]:
         assert contra["id"] != "metastatic_cancer", "metastatic_cancer should not be in contraindications"
 
+
+def test_prediction_features_personal_details(client, temp_data_dir, test_headers):
+    """Test that prediction features include patient personal details"""
+    patient_data = {
+        "name": "Alex Patient",
+        "date_of_birth": "1990-02-10",
+        "email": "alex@example.com"
+    }
+    create_response = client.post("/api/v1/patients", json=patient_data, headers=test_headers)
+    assert create_response.status_code == 200
+
+    # Update personal details
+    update_payload = {
+        "dob": "1990-02-10",
+        "sex_assigned_at_birth": "female",
+        "height": 170,
+        "weight_lbs": 150
+    }
+    update_response = client.patch("/api/v1/patients", json=update_payload, headers=test_headers)
+    assert update_response.status_code == 200
+
+    # Request prediction features with debug output
+    response = client.get("/api/v1/ai-assistant/prediction?debug_features=true", headers=test_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    features = data["features"]
+    assert features["features_version"] == "v1"
+    assert features["generated_at"] is not None
+    assert features["dob"] == "1990-02-10"
+    assert features["sex_assigned_at_birth"] == "female"
+    assert features["height_cm"] == 170
+    assert features["weight_kg"] is not None
+    assert features["weight_lbs"] == 150
+
+    sources = data["source_fields"]
+    assert sources["dob"]["from"] == "patient.date_of_birth"
+    assert sources["sex_assigned_at_birth"]["from"] == "patient.sex"
+    assert sources["height_cm"]["from"] == "patient.height_cm"
+    assert sources["weight_kg"]["from"] == "patient.weight_kg"
+    assert sources["weight_lbs"]["transform"] == "kg_to_lbs"
+
+
+def test_prediction_features_latest_weight_wins(client, temp_data_dir, test_headers):
+    """Test that latest personal details overwrite previous values"""
+    patient_data = {
+        "name": "Sam Patient",
+        "date_of_birth": "1985-07-01",
+        "email": "sam@example.com"
+    }
+    create_response = client.post("/api/v1/patients", json=patient_data, headers=test_headers)
+    assert create_response.status_code == 200
+
+    # Set initial weight
+    update_response = client.patch("/api/v1/patients", json={"weight_lbs": 180}, headers=test_headers)
+    assert update_response.status_code == 200
+
+    response = client.get("/api/v1/ai-assistant/prediction?debug_features=true", headers=test_headers)
+    assert response.status_code == 200
+    assert response.json()["features"]["weight_lbs"] == pytest.approx(180, abs=0.05)
+
+    # Update weight and ensure new value is used
+    update_response = client.patch("/api/v1/patients", json={"weight_lbs": 165}, headers=test_headers)
+    assert update_response.status_code == 200
+
+    response = client.get("/api/v1/ai-assistant/prediction?debug_features=true", headers=test_headers)
+    assert response.status_code == 200
+    assert response.json()["features"]["weight_lbs"] == pytest.approx(165, abs=0.05)
+
+
+def test_patient_contract_alias_input_canonical_storage(client, temp_data_dir, test_headers):
+    """Contract test: legacy input keys are accepted and stored canonically"""
+    patient_data = {
+        "name": "Legacy Patient",
+        "dob": "1980-12-01",
+        "sex_assigned_at_birth": "male",
+        "height": 180,
+        "weight_lbs": 200,
+        "email": "legacy@example.com"
+    }
+    response = client.post("/api/v1/patients", json=patient_data, headers=test_headers)
+    assert response.status_code == 200
+
+    # Verify canonical storage only
+    patient_file = Path(temp_data_dir) / "patient.json"
+    with open(patient_file, 'r') as f:
+        saved_data = json.load(f)[0]
+        assert "date_of_birth" in saved_data
+        assert "sex" in saved_data
+        assert "height_cm" in saved_data
+        assert "weight_kg" in saved_data
+        assert "dob" not in saved_data
+        assert "sex_assigned_at_birth" not in saved_data
+        assert "height" not in saved_data
+        assert "weight" not in saved_data
+        assert "weight_lbs" not in saved_data
+
+    # Verify prediction features use canonical storage
+    features_response = client.get("/api/v1/ai-assistant/prediction?debug_features=true", headers=test_headers)
+    assert features_response.status_code == 200
+    features = features_response.json()["features"]
+    assert features["dob"] == "1980-12-01"
+    assert features["sex_assigned_at_birth"] == "male"
+    assert features["height_cm"] == 180
+    assert features["weight_lbs"] == 200
+
