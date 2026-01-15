@@ -332,14 +332,12 @@ async def get_document(file_path: str, request: Request):
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    # Decode the file path
-    try:
-        decoded_path = urllib.parse.unquote(file_path)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid file path encoding")
+    # FastAPI's :path parameter automatically URL-decodes the path
+    # So file_path is already decoded when it reaches this function
+    # File path format: documents/{patient_id}/{item_id}/{filename}
+    decoded_path = file_path
     
     # Construct full file path
-    # File path format: documents/{patient_id}/{item_id}/{filename}
     full_path = Path("data") / decoded_path
     
     # Security check: ensure the path is within data/documents
