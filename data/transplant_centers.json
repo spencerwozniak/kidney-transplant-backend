@@ -22,7 +22,7 @@
     "contact": {
       "referral_phone": "(858) 657-7000",
       "referral_fax": "(858) 657-7001",
-      "website": "https://health.ucsd.edu/care/transplant-programs/kidney/"
+      "website": "https://health.ucsd.edu/specialties/transplant"
     }
   },
   {
@@ -48,7 +48,7 @@
     "contact": {
       "referral_phone": "(310) 825-6836",
       "referral_fax": "(310) 825-6837",
-      "website": "https://www.uclahealth.org/medical-services/transplants/kidney-transplant"
+      "website": "https://www.uclahealth.org/transplant"
     }
   },
   {
@@ -74,7 +74,1697 @@
     "contact": {
       "referral_phone": "(310) 423-4444",
       "referral_fax": "(310) 423-4445",
-      "website": "https://www.cedars-sinai.org/programs/transplant/specialties/kidney-pancreas.html"
+      "website": "https://www.cedars-sinai.org/programs/transplant"
+    }
+  },
+  {
+    "center_id": "ucsf_kidney_tx",
+    "name": "UCSF Kidney Transplant Program",
+    "location": {
+      "city": "San Francisco",
+      "state": "CA",
+      "zip": "94143",
+      "lat": 37.7631,
+      "lng": -122.458
+    },
+    "accepts_referrals_from": ["CA", "NV"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(415) 353-1551",
+      "referral_fax": "(415) 353-1552",
+      "website": "https://www.ucsfhealth.org"
+    }
+  },
+  {
+    "center_id": "stanford_kidney_tx",
+    "name": "Stanford Kidney Transplant Program",
+    "location": {
+      "city": "Stanford",
+      "state": "CA",
+      "zip": "94304",
+      "lat": 37.434,
+      "lng": -122.175
+    },
+    "accepts_referrals_from": ["CA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(650) 723-4000",
+      "referral_fax": "(650) 723-4001",
+      "website": "https://stanfordhospital.org"
+    }
+  },
+  {
+    "center_id": "uab_kidney_tx",
+    "name": "UAB Kidney Transplant Program",
+    "location": {
+      "city": "Birmingham",
+      "state": "AL",
+      "zip": "35233",
+      "lat": 33.5056,
+      "lng": -86.803
+    },
+    "accepts_referrals_from": ["AL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["AL"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(833) 822-2841",
+      "referral_fax": "(833) 822-2842",
+      "website": "https://www.uabmedicine.org/specialties/transplant-services"
+    }
+  },
+  {
+    "center_id": "uams_kidney_tx",
+    "name": "UAMS Kidney Transplant Program",
+    "location": {
+      "city": "Little Rock",
+      "state": "AR",
+      "zip": "72205",
+      "lat": 34.7482,
+      "lng": -92.3199
+    },
+    "accepts_referrals_from": ["AR"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["AR"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(501) 686-7000",
+      "referral_fax": "(501) 686-7001",
+      "website": "https://www.uams.edu"
+    }
+  },
+  {
+    "center_id": "mayo_az_kidney_tx",
+    "name": "Mayo Clinic Arizona Kidney Transplant Program",
+    "location": {
+      "city": "Phoenix",
+      "state": "AZ",
+      "zip": "85054",
+      "lat": 33.6594,
+      "lng": -111.9564
+    },
+    "accepts_referrals_from": ["AZ"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["AZ"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(844) 243-1846",
+      "referral_fax": "(844) 243-1847",
+      "website": "https://www.mayoclinic.org"
+    }
+  },
+  {
+    "center_id": "univ_colorado_kidney_tx",
+    "name": "University of Colorado Kidney Transplant Program",
+    "location": {
+      "city": "Aurora",
+      "state": "CO",
+      "zip": "80045",
+      "lat": 39.745,
+      "lng": -104.836
+    },
+    "accepts_referrals_from": ["CO", "WY"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CO"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(720) 848-2280",
+      "referral_fax": "(720) 848-2281",
+      "website": "https://www.uch.edu"
+    }
+  },
+  {
+    "center_id": "yale_kidney_tx",
+    "name": "Yale New Haven Kidney Transplant Program",
+    "location": {
+      "city": "New Haven",
+      "state": "CT",
+      "zip": "06510",
+      "lat": 41.305,
+      "lng": -72.936
+    },
+    "accepts_referrals_from": ["CT"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["CT"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(203) 785-2565",
+      "referral_fax": "(203) 785-2566",
+      "website": "https://www.ynhh.org"
+    }
+  },
+  {
+    "center_id": "christiana_kidney_tx",
+    "name": "Christiana Care Kidney Transplant Program",
+    "location": {
+      "city": "Newark",
+      "state": "DE",
+      "zip": "19718",
+      "lat": 39.687,
+      "lng": -75.667
+    },
+    "accepts_referrals_from": ["DE"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["DE"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(302) 623-3863",
+      "referral_fax": "(302) 623-3864",
+      "website": "https://www.christianacare.org"
+    }
+  },
+  {
+    "center_id": "jackson_memorial_kidney_tx",
+    "name": "Jackson Memorial Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Miami",
+      "state": "FL",
+      "zip": "33136",
+      "lat": 25.789,
+      "lng": -80.211
+    },
+    "accepts_referrals_from": ["FL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["FL"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(305) 355-5000",
+      "referral_fax": "(305) 355-5001",
+      "website": "https://transplant.jacksonhealth.org"
+    }
+  },
+  {
+    "center_id": "tampa_general_kidney_tx",
+    "name": "Tampa General Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Tampa",
+      "state": "FL",
+      "zip": "33606",
+      "lat": 27.939,
+      "lng": -82.459
+    },
+    "accepts_referrals_from": ["FL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["FL"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(813) 844-7000",
+      "referral_fax": "(813) 844-7001",
+      "website": "https://www.tgh.org"
+    }
+  },
+  {
+    "center_id": "mayo_fl_kidney_tx",
+    "name": "Mayo Clinic Florida Kidney Transplant Program",
+    "location": {
+      "city": "Jacksonville",
+      "state": "FL",
+      "zip": "32224",
+      "lat": 30.2645,
+      "lng": -81.4423
+    },
+    "accepts_referrals_from": ["FL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["FL"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(904) 953-2000",
+      "referral_fax": "(904) 953-2001",
+      "website": "https://www.mayoclinic.org"
+    }
+  },
+  {
+    "center_id": "emory_kidney_tx",
+    "name": "Emory Kidney Transplant Program",
+    "location": {
+      "city": "Atlanta",
+      "state": "GA",
+      "zip": "30322",
+      "lat": 33.793,
+      "lng": -84.32
+    },
+    "accepts_referrals_from": ["GA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["GA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(855) 366-7989",
+      "referral_fax": "(855) 366-7990",
+      "website": "https://www.emoryhealthcare.org"
+    }
+  },
+  {
+    "center_id": "piedmont_kidney_tx",
+    "name": "Piedmont Atlanta Kidney Transplant Program",
+    "location": {
+      "city": "Atlanta",
+      "state": "GA",
+      "zip": "30309",
+      "lat": 33.809,
+      "lng": -84.392
+    },
+    "accepts_referrals_from": ["GA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["GA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(404) 605-5000",
+      "referral_fax": "(404) 605-5001",
+      "website": "https://www.piedmonttransplant.org"
+    }
+  },
+  {
+    "center_id": "queens_kidney_tx",
+    "name": "Queen's Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Honolulu",
+      "state": "HI",
+      "zip": "96813",
+      "lat": 21.306,
+      "lng": -157.854
+    },
+    "accepts_referrals_from": ["HI"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["HI"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(808) 538-9011",
+      "referral_fax": "(808) 538-9012",
+      "website": "https://www.queens.org"
+    }
+  },
+  {
+    "center_id": "uiowa_kidney_tx",
+    "name": "University of Iowa Kidney Transplant Program",
+    "location": {
+      "city": "Iowa City",
+      "state": "IA",
+      "zip": "52242",
+      "lat": 41.662,
+      "lng": -91.55
+    },
+    "accepts_referrals_from": ["IA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["IA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(319) 356-8877",
+      "referral_fax": "(319) 356-8878",
+      "website": "https://www.uihealthcare.org"
+    }
+  },
+  {
+    "center_id": "northwestern_kidney_tx",
+    "name": "Northwestern Memorial Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Chicago",
+      "state": "IL",
+      "zip": "60611",
+      "lat": 41.894,
+      "lng": -87.621
+    },
+    "accepts_referrals_from": ["IL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["IL"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(312) 926-2000",
+      "referral_fax": "(312) 926-2001",
+      "website": "https://www.nm.org"
+    }
+  },
+  {
+    "center_id": "uchicago_kidney_tx",
+    "name": "University of Chicago Kidney Transplant Program",
+    "location": {
+      "city": "Chicago",
+      "state": "IL",
+      "zip": "60637",
+      "lat": 41.789,
+      "lng": -87.604
+    },
+    "accepts_referrals_from": ["IL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["IL"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(773) 702-3000",
+      "referral_fax": "(773) 702-3001",
+      "website": "https://www.uchicagomedicine.org"
+    }
+  },
+  {
+    "center_id": "iu_health_kidney_tx",
+    "name": "Indiana University Health Kidney Transplant Program",
+    "location": {
+      "city": "Indianapolis",
+      "state": "IN",
+      "zip": "46202",
+      "lat": 39.779,
+      "lng": -86.176
+    },
+    "accepts_referrals_from": ["IN"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["IN"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(800) 265-3220",
+      "referral_fax": "(800) 265-3221",
+      "website": "https://www.iuhealth.org"
+    }
+  },
+  {
+    "center_id": "ku_kidney_tx",
+    "name": "University of Kansas Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Kansas City",
+      "state": "KS",
+      "zip": "66160",
+      "lat": 39.057,
+      "lng": -94.608
+    },
+    "accepts_referrals_from": ["KS"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["KS"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(913) 588-5000",
+      "referral_fax": "(913) 588-5001",
+      "website": "https://www.kansashealthsystem.com"
+    }
+  },
+  {
+    "center_id": "uk_kidney_tx",
+    "name": "University of Kentucky Kidney Transplant Program",
+    "location": {
+      "city": "Lexington",
+      "state": "KY",
+      "zip": "40536",
+      "lat": 38.032,
+      "lng": -84.508
+    },
+    "accepts_referrals_from": ["KY"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["KY"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(866) 285-4337",
+      "referral_fax": "(866) 285-4338",
+      "website": "https://ukhealthcare.uky.edu"
+    }
+  },
+  {
+    "center_id": "ochsner_kidney_tx",
+    "name": "Ochsner Kidney Transplant Program",
+    "location": {
+      "city": "New Orleans",
+      "state": "LA",
+      "zip": "70121",
+      "lat": 29.961,
+      "lng": -90.144
+    },
+    "accepts_referrals_from": ["LA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["LA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(504) 842-3925",
+      "referral_fax": "(504) 842-3926",
+      "website": "https://www.ochsner.org"
+    }
+  },
+  {
+    "center_id": "mgh_kidney_tx",
+    "name": "Massachusetts General Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Boston",
+      "state": "MA",
+      "zip": "02114",
+      "lat": 42.363,
+      "lng": -71.068
+    },
+    "accepts_referrals_from": ["MA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(617) 726-2000",
+      "referral_fax": "(617) 726-2001",
+      "website": "https://www.massgeneral.org"
+    }
+  },
+  {
+    "center_id": "brigham_kidney_tx",
+    "name": "Brigham and Women's Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Boston",
+      "state": "MA",
+      "zip": "02115",
+      "lat": 42.335,
+      "lng": -71.106
+    },
+    "accepts_referrals_from": ["MA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(617) 732-5500",
+      "referral_fax": "(617) 732-5501",
+      "website": "https://www.brighamandwomens.org"
+    }
+  },
+  {
+    "center_id": "hopkins_kidney_tx",
+    "name": "Johns Hopkins Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Baltimore",
+      "state": "MD",
+      "zip": "21287",
+      "lat": 39.297,
+      "lng": -76.592
+    },
+    "accepts_referrals_from": ["MD", "DE"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MD"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(410) 955-5000",
+      "referral_fax": "(410) 955-5001",
+      "website": "https://www.hopkinsmedicine.org"
+    }
+  },
+  {
+    "center_id": "umd_kidney_tx",
+    "name": "University of Maryland Kidney Transplant Program",
+    "location": {
+      "city": "Baltimore",
+      "state": "MD",
+      "zip": "21201",
+      "lat": 39.288,
+      "lng": -76.623
+    },
+    "accepts_referrals_from": ["MD"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MD"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(410) 328-6363",
+      "referral_fax": "(410) 328-6364",
+      "website": "https://www.umm.edu"
+    }
+  },
+  {
+    "center_id": "mmc_kidney_tx",
+    "name": "Maine Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Portland",
+      "state": "ME",
+      "zip": "04102",
+      "lat": 43.656,
+      "lng": -70.279
+    },
+    "accepts_referrals_from": ["ME"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["ME"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(207) 662-0111",
+      "referral_fax": "(207) 662-0112",
+      "website": "https://www.mmc.org"
+    }
+  },
+  {
+    "center_id": "umich_kidney_tx",
+    "name": "University of Michigan Kidney Transplant Program",
+    "location": {
+      "city": "Ann Arbor",
+      "state": "MI",
+      "zip": "48109",
+      "lat": 42.283,
+      "lng": -83.73
+    },
+    "accepts_referrals_from": ["MI"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MI"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(734) 936-4000",
+      "referral_fax": "(734) 936-4001",
+      "website": "https://www.uofmhealth.org"
+    }
+  },
+  {
+    "center_id": "henry_ford_kidney_tx",
+    "name": "Henry Ford Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Detroit",
+      "state": "MI",
+      "zip": "48202",
+      "lat": 42.364,
+      "lng": -83.074
+    },
+    "accepts_referrals_from": ["MI"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MI"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(313) 916-2600",
+      "referral_fax": "(313) 916-2601",
+      "website": "https://www.henryfordhealth.org"
+    }
+  },
+  {
+    "center_id": "mayo_mn_kidney_tx",
+    "name": "Mayo Clinic Rochester Kidney Transplant Program",
+    "location": {
+      "city": "Rochester",
+      "state": "MN",
+      "zip": "55905",
+      "lat": 44.022,
+      "lng": -92.466
+    },
+    "accepts_referrals_from": ["MN"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MN"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(507) 284-2511",
+      "referral_fax": "(507) 284-2512",
+      "website": "https://www.mayoclinic.org"
+    }
+  },
+  {
+    "center_id": "umn_kidney_tx",
+    "name": "University of Minnesota Kidney Transplant Program",
+    "location": {
+      "city": "Minneapolis",
+      "state": "MN",
+      "zip": "55455",
+      "lat": 44.971,
+      "lng": -93.232
+    },
+    "accepts_referrals_from": ["MN"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MN"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(612) 625-5115",
+      "referral_fax": "(612) 625-5116",
+      "website": "https://mhealthfairview.org"
+    }
+  },
+  {
+    "center_id": "barnes_jewish_kidney_tx",
+    "name": "Barnes-Jewish Hospital Kidney Transplant Program",
+    "location": {
+      "city": "St. Louis",
+      "state": "MO",
+      "zip": "63110",
+      "lat": 38.637,
+      "lng": -90.263
+    },
+    "accepts_referrals_from": ["MO", "IL"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MO"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(314) 747-3000",
+      "referral_fax": "(314) 747-3001",
+      "website": "https://www.barnesjewish.org"
+    }
+  },
+  {
+    "center_id": "umiss_kidney_tx",
+    "name": "University of Mississippi Kidney Transplant Program",
+    "location": {
+      "city": "Jackson",
+      "state": "MS",
+      "zip": "39216",
+      "lat": 32.334,
+      "lng": -90.169
+    },
+    "accepts_referrals_from": ["MS"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["MS"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(601) 984-1000",
+      "referral_fax": "(601) 984-1001",
+      "website": "https://www.umc.edu"
+    }
+  },
+  {
+    "center_id": "duke_kidney_tx",
+    "name": "Duke University Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Durham",
+      "state": "NC",
+      "zip": "27710",
+      "lat": 36.008,
+      "lng": -78.94
+    },
+    "accepts_referrals_from": ["NC"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NC"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(919) 684-8111",
+      "referral_fax": "(919) 684-8112",
+      "website": "https://www.dukehealth.org"
+    }
+  },
+  {
+    "center_id": "atrium_kidney_tx",
+    "name": "Atrium Health Carolinas Kidney Transplant Program",
+    "location": {
+      "city": "Charlotte",
+      "state": "NC",
+      "zip": "28203",
+      "lat": 35.204,
+      "lng": -80.839
+    },
+    "accepts_referrals_from": ["NC", "SC"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NC"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(704) 355-2000",
+      "referral_fax": "(704) 355-2001",
+      "website": "https://www.atriumhealth.org"
+    }
+  },
+  {
+    "center_id": "sanford_fargo_kidney_tx",
+    "name": "Sanford Fargo Kidney Transplant Program",
+    "location": {
+      "city": "Fargo",
+      "state": "ND",
+      "zip": "58104",
+      "lat": 46.861,
+      "lng": -96.829
+    },
+    "accepts_referrals_from": ["ND"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["ND"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(701) 234-2000",
+      "referral_fax": "(701) 234-2001",
+      "website": "https://www.sanfordhealth.org"
+    }
+  },
+  {
+    "center_id": "nebraska_med_kidney_tx",
+    "name": "Nebraska Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Omaha",
+      "state": "NE",
+      "zip": "68198",
+      "lat": 41.255,
+      "lng": -95.975
+    },
+    "accepts_referrals_from": ["NE"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NE"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(402) 559-4000",
+      "referral_fax": "(402) 559-4001",
+      "website": "https://www.nebraskamed.com"
+    }
+  },
+  {
+    "center_id": "dartmouth_kidney_tx",
+    "name": "Dartmouth-Hitchcock (Mary Hitchcock) Kidney Transplant Program",
+    "location": {
+      "city": "Lebanon",
+      "state": "NH",
+      "zip": "03756",
+      "lat": 43.677,
+      "lng": -72.273
+    },
+    "accepts_referrals_from": ["NH", "VT"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NH"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(603) 653-3931",
+      "referral_fax": "(603) 653-3932",
+      "website": "https://www.dhmc.org"
+    }
+  },
+  {
+    "center_id": "hackensack_kidney_tx",
+    "name": "Hackensack University Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Hackensack",
+      "state": "NJ",
+      "zip": "07601",
+      "lat": 40.88,
+      "lng": -74.055
+    },
+    "accepts_referrals_from": ["NJ"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NJ"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(201) 996-2000",
+      "referral_fax": "(201) 996-2001",
+      "website": "https://www.hackensackumc.org"
+    }
+  },
+  {
+    "center_id": "saint_barnabas_kidney_tx",
+    "name": "Saint Barnabas Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Livingston",
+      "state": "NJ",
+      "zip": "07039",
+      "lat": 40.785,
+      "lng": -74.329
+    },
+    "accepts_referrals_from": ["NJ"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NJ"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(973) 322-5000",
+      "referral_fax": "(973) 322-5001",
+      "website": "https://www.saintbarnabas.com"
+    }
+  },
+  {
+    "center_id": "unmh_kidney_tx",
+    "name": "University of New Mexico Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Albuquerque",
+      "state": "NM",
+      "zip": "87106",
+      "lat": 35.087,
+      "lng": -106.626
+    },
+    "accepts_referrals_from": ["NM"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NM"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(505) 272-2111",
+      "referral_fax": "(505) 272-2112",
+      "website": "https://hospitals.unm.edu"
+    }
+  },
+  {
+    "center_id": "umc_nevada_kidney_tx",
+    "name": "University Medical Center of Southern Nevada Kidney Transplant Program",
+    "location": {
+      "city": "Las Vegas",
+      "state": "NV",
+      "zip": "89102",
+      "lat": 36.159,
+      "lng": -115.162
+    },
+    "accepts_referrals_from": ["NV"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NV"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(702) 383-2000",
+      "referral_fax": "(702) 383-2001",
+      "website": "https://www.umcsn.com"
+    }
+  },
+  {
+    "center_id": "renown_kidney_tx",
+    "name": "Renown Regional Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Reno",
+      "state": "NV",
+      "zip": "89503",
+      "lat": 39.531,
+      "lng": -119.82
+    },
+    "accepts_referrals_from": ["NV"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NV"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(775) 982-3313",
+      "referral_fax": "(775) 982-3314",
+      "website": "https://www.renown.org"
+    }
+  },
+  {
+    "center_id": "nyp_columbia_kidney_tx",
+    "name": "NewYork-Presbyterian/Columbia Kidney Transplant Program",
+    "location": {
+      "city": "New York",
+      "state": "NY",
+      "zip": "10032",
+      "lat": 40.841,
+      "lng": -73.941
+    },
+    "accepts_referrals_from": ["NY", "NJ"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NY"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(212) 305-8110",
+      "referral_fax": "(212) 305-8111",
+      "website": "https://www.nyp.org"
+    }
+  },
+  {
+    "center_id": "nyu_kidney_tx",
+    "name": "NYU Langone Health Kidney Transplant Program",
+    "location": {
+      "city": "New York",
+      "state": "NY",
+      "zip": "10016",
+      "lat": 40.742,
+      "lng": -73.974
+    },
+    "accepts_referrals_from": ["NY"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NY"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(212) 263-7300",
+      "referral_fax": "(212) 263-7301",
+      "website": "https://www.nyulangone.org"
+    }
+  },
+  {
+    "center_id": "mount_sinai_kidney_tx",
+    "name": "Mount Sinai Hospital Kidney Transplant Program",
+    "location": {
+      "city": "New York",
+      "state": "NY",
+      "zip": "10029",
+      "lat": 40.789,
+      "lng": -73.953
+    },
+    "accepts_referrals_from": ["NY"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["NY"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(212) 241-6500",
+      "referral_fax": "(212) 241-6501",
+      "website": "https://www.mountsinai.org"
+    }
+  },
+  {
+    "center_id": "cleveland_clinic_kidney_tx",
+    "name": "Cleveland Clinic Kidney Transplant Program",
+    "location": {
+      "city": "Cleveland",
+      "state": "OH",
+      "zip": "44195",
+      "lat": 41.503,
+      "lng": -81.62
+    },
+    "accepts_referrals_from": ["OH"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["OH"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(216) 444-0340",
+      "referral_fax": "(216) 444-0341",
+      "website": "https://www.ccf.org"
+    }
+  },
+  {
+    "center_id": "osu_kidney_tx",
+    "name": "Ohio State University Wexner Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Columbus",
+      "state": "OH",
+      "zip": "43210",
+      "lat": 40.002,
+      "lng": -83.016
+    },
+    "accepts_referrals_from": ["OH"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["OH"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(614) 293-8000",
+      "referral_fax": "(614) 293-8001",
+      "website": "https://wexnermedical.osu.edu"
+    }
+  },
+  {
+    "center_id": "integris_kidney_tx",
+    "name": "INTEGRIS Baptist Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Oklahoma City",
+      "state": "OK",
+      "zip": "73112",
+      "lat": 35.517,
+      "lng": -97.539
+    },
+    "accepts_referrals_from": ["OK"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["OK"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(405) 949-3349",
+      "referral_fax": "(405) 949-3350",
+      "website": "https://www.integrisok.com"
+    }
+  },
+  {
+    "center_id": "ohsu_kidney_tx",
+    "name": "OHSU Kidney Transplant Program",
+    "location": {
+      "city": "Portland",
+      "state": "OR",
+      "zip": "97239",
+      "lat": 45.499,
+      "lng": -122.685
+    },
+    "accepts_referrals_from": ["OR", "ID"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["OR"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(503) 494-8500",
+      "referral_fax": "(503) 494-8501",
+      "website": "https://www.ohsu.edu"
+    }
+  },
+  {
+    "center_id": "penn_kidney_tx",
+    "name": "Hospital of the University of Pennsylvania Kidney Transplant Program",
+    "location": {
+      "city": "Philadelphia",
+      "state": "PA",
+      "zip": "19104",
+      "lat": 39.95,
+      "lng": -75.193
+    },
+    "accepts_referrals_from": ["PA", "DE"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["PA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(215) 662-4000",
+      "referral_fax": "(215) 662-4001",
+      "website": "https://www.pennmedicine.org"
+    }
+  },
+  {
+    "center_id": "upmc_kidney_tx",
+    "name": "UPMC Kidney Transplant Program",
+    "location": {
+      "city": "Pittsburgh",
+      "state": "PA",
+      "zip": "15213",
+      "lat": 40.443,
+      "lng": -79.962
+    },
+    "accepts_referrals_from": ["PA"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["PA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(800) 430-8834",
+      "referral_fax": "(800) 430-8835",
+      "website": "https://www.upmc.com"
+    }
+  },
+  {
+    "center_id": "rih_kidney_tx",
+    "name": "Rhode Island Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Providence",
+      "state": "RI",
+      "zip": "02903",
+      "lat": 41.816,
+      "lng": -71.407
+    },
+    "accepts_referrals_from": ["RI"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["RI"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(401) 444-4000",
+      "referral_fax": "(401) 444-4001",
+      "website": "https://www.lifespan.org"
+    }
+  },
+  {
+    "center_id": "musc_kidney_tx",
+    "name": "Medical University of South Carolina Kidney Transplant Program",
+    "location": {
+      "city": "Charleston",
+      "state": "SC",
+      "zip": "29425",
+      "lat": 32.784,
+      "lng": -79.947
+    },
+    "accepts_referrals_from": ["SC"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["SC"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(843) 792-5097",
+      "referral_fax": "(843) 792-5098",
+      "website": "https://web.musc.edu"
+    }
+  },
+  {
+    "center_id": "sanford_sd_kidney_tx",
+    "name": "Sanford Medical Center Sioux Falls Kidney Transplant Program",
+    "location": {
+      "city": "Sioux Falls",
+      "state": "SD",
+      "zip": "57105",
+      "lat": 43.536,
+      "lng": -96.742
+    },
+    "accepts_referrals_from": ["SD"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["SD"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(605) 328-9290",
+      "referral_fax": "(605) 328-9291",
+      "website": "https://www.sanfordhealth.org"
+    }
+  },
+  {
+    "center_id": "vanderbilt_kidney_tx",
+    "name": "Vanderbilt University Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Nashville",
+      "state": "TN",
+      "zip": "37232",
+      "lat": 36.141,
+      "lng": -86.802
+    },
+    "accepts_referrals_from": ["TN"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["TN"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(615) 936-0388",
+      "referral_fax": "(615) 936-0389",
+      "website": "https://www.vanderbilthealth.com"
+    }
+  },
+  {
+    "center_id": "baylor_dallas_kidney_tx",
+    "name": "Baylor University Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Dallas",
+      "state": "TX",
+      "zip": "75246",
+      "lat": 32.788,
+      "lng": -96.781
+    },
+    "accepts_referrals_from": ["TX"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["TX"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(214) 820-2050",
+      "referral_fax": "(214) 820-2051",
+      "website": "https://www.bswhealth.com"
+    }
+  },
+  {
+    "center_id": "houston_methodist_kidney_tx",
+    "name": "Houston Methodist Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Houston",
+      "state": "TX",
+      "zip": "77030",
+      "lat": 29.709,
+      "lng": -95.399
+    },
+    "accepts_referrals_from": ["TX"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["TX"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(713) 394-6000",
+      "referral_fax": "(713) 394-6001",
+      "website": "https://www.houstonmethodist.org"
+    }
+  },
+  {
+    "center_id": "ut_health_sa_kidney_tx",
+    "name": "University Health San Antonio Kidney Transplant Program",
+    "location": {
+      "city": "San Antonio",
+      "state": "TX",
+      "zip": "78229",
+      "lat": 29.507,
+      "lng": -98.576
+    },
+    "accepts_referrals_from": ["TX"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["TX"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(210) 358-4000",
+      "referral_fax": "(210) 358-4001",
+      "website": "https://www.universitytransplantcenter.com"
+    }
+  },
+  {
+    "center_id": "uofu_kidney_tx",
+    "name": "University of Utah Kidney Transplant Program",
+    "location": {
+      "city": "Salt Lake City",
+      "state": "UT",
+      "zip": "84132",
+      "lat": 40.768,
+      "lng": -111.833
+    },
+    "accepts_referrals_from": ["UT", "ID", "WY"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["UT"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(801) 581-2121",
+      "referral_fax": "(801) 581-2122",
+      "website": "https://healthcare.utah.edu"
+    }
+  },
+  {
+    "center_id": "inova_kidney_tx",
+    "name": "Inova Fairfax Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Falls Church",
+      "state": "VA",
+      "zip": "22042",
+      "lat": 38.873,
+      "lng": -77.223
+    },
+    "accepts_referrals_from": ["VA", "DC"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["VA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(703) 776-4001",
+      "referral_fax": "(703) 776-4002",
+      "website": "https://www.inova.com"
+    }
+  },
+  {
+    "center_id": "uva_kidney_tx",
+    "name": "University of Virginia Kidney Transplant Program",
+    "location": {
+      "city": "Charlottesville",
+      "state": "VA",
+      "zip": "22908",
+      "lat": 38.033,
+      "lng": -78.499
+    },
+    "accepts_referrals_from": ["VA", "WV"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["VA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(434) 924-8604",
+      "referral_fax": "(434) 924-8605",
+      "website": "https://uvahealth.com"
+    }
+  },
+  {
+    "center_id": "uw_kidney_tx",
+    "name": "University of Washington Medical Center Kidney Transplant Program",
+    "location": {
+      "city": "Seattle",
+      "state": "WA",
+      "zip": "98195",
+      "lat": 47.65,
+      "lng": -122.305
+    },
+    "accepts_referrals_from": ["WA", "AK", "MT", "ID"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["WA"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(206) 598-8181",
+      "referral_fax": "(206) 598-8182",
+      "website": "https://www.uwmedicine.org"
+    }
+  },
+  {
+    "center_id": "uw_health_kidney_tx",
+    "name": "UW Health (University of Wisconsin) Kidney Transplant Program",
+    "location": {
+      "city": "Madison",
+      "state": "WI",
+      "zip": "53792",
+      "lat": 43.076,
+      "lng": -89.43
+    },
+    "accepts_referrals_from": ["WI"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["WI"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(608) 263-6400",
+      "referral_fax": "(608) 263-6401",
+      "website": "https://www.uwhealth.org"
+    }
+  },
+  {
+    "center_id": "froedtert_kidney_tx",
+    "name": "Froedtert Hospital Kidney Transplant Program",
+    "location": {
+      "city": "Milwaukee",
+      "state": "WI",
+      "zip": "53226",
+      "lat": 43.043,
+      "lng": -88.022
+    },
+    "accepts_referrals_from": ["WI"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["WI"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(414) 805-3000",
+      "referral_fax": "(414) 805-3001",
+      "website": "https://www.froedtert.com"
+    }
+  },
+  {
+    "center_id": "wvu_kidney_tx",
+    "name": "WVU Medicine (West Virginia University) Kidney Transplant Program",
+    "location": {
+      "city": "Morgantown",
+      "state": "WV",
+      "zip": "26506",
+      "lat": 39.653,
+      "lng": -79.955
+    },
+    "accepts_referrals_from": ["WV"],
+    "insurance_notes": {
+      "medicare": true,
+      "medicaid_states": ["WV"]
+    },
+    "referral_requirements": {
+      "required": true,
+      "who_can_refer": ["nephrologist", "pcp"],
+      "self_referral_allowed": false
+    },
+    "contact": {
+      "referral_phone": "(304) 974-3004",
+      "referral_fax": "(304) 974-3005",
+      "website": "https://www.wvumedicine.org"
     }
   }
 ]
