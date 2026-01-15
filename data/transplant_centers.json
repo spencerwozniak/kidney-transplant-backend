@@ -22,7 +22,7 @@
     "contact": {
       "referral_phone": "(858) 657-7000",
       "referral_fax": "(858) 657-7001",
-      "website": "https://health.ucsd.edu/specialties/transplant"
+      "website": "https://health.ucsd.edu/care/transplant-programs/kidney/"
     }
   },
   {
@@ -48,7 +48,7 @@
     "contact": {
       "referral_phone": "(310) 825-6836",
       "referral_fax": "(310) 825-6837",
-      "website": "https://www.uclahealth.org/transplant"
+      "website": "https://www.uclahealth.org/medical-services/transplants/kidney-transplant"
     }
   },
   {
@@ -74,7 +74,7 @@
     "contact": {
       "referral_phone": "(310) 423-4444",
       "referral_fax": "(310) 423-4445",
-      "website": "https://www.cedars-sinai.org/programs/transplant"
+      "website": "https://www.cedars-sinai.org/programs/transplant/specialties/kidney-pancreas.html"
     }
   }
 ]
