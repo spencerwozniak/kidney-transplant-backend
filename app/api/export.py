@@ -5,12 +5,24 @@ Exports patient data in FHIR R4 format and generates AI-powered clinical summari
 """
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import base64
 import json
 import asyncio
 from datetime import datetime
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import markdown
+from xhtml2pdf import pisa
+import tempfile
+from io import BytesIO
+import re
 
 from app.database import storage as database
 from app.api.utils import get_device_id
@@ -882,8 +894,6 @@ bullet points, and short paragraphs."""
 
 Structure the document in the following order and format:
 
----
-
 ### Clinical Summary
 Provide a concise, clinically written paragraph summarizing:
 - Primary condition and relevant comorbidities
@@ -893,8 +903,6 @@ Provide a concise, clinically written paragraph summarizing:
 
 This section should be readable on its own and suitable for referral or committee review.
 
----
-
 ### Active Medical Problems & Key Findings
 List:
 - Primary diagnosis
@@ -902,8 +910,6 @@ List:
 - Pertinent objective findings from observations or assessments
 
 Use bullet points. Do not repeat narrative text.
-
----
 
 ### Transplant Eligibility & Contraindication Screening
 Summarize patient-reported or documented contraindication screening results
@@ -915,22 +921,15 @@ in a clear, structured format (table or bullet list), including:
 
 Clearly indicate negative findings.
 
----
-
 ### Assessment & Plan
 Summarize the documented assessment and plan exactly as provided in the source material.
 Do NOT add recommendations or clinical opinions.
 
----
-
 ### Export Information
 Include:
-- Statement that the summary is patient-authorized
-- Source of data (structured FHIR data, questionnaires, uploaded documents)
-- Date generated
-- Available formats (e.g., human-readable summary, structured export)
-
----
+- Statement that this summary is patient-authorized
+- Source of data (questionnaires and uploaded documents)
+- Date generated: {datetime.now().strftime('%B %d, %Y')}
 
 Formatting requirements:
 - Use clear section headers
@@ -1145,3 +1144,233 @@ async def export_clinical_summary_stream(request: Request, model: Optional[str] 
             "Connection": "keep-alive",
         }
     )
+
+
+class ShareClinicalSummaryRequest(BaseModel):
+    """Request model for sharing clinical summary"""
+    markdown_content: str
+
+
+@router.post("/patients/clinical-summary/share")
+async def share_clinical_summary(request_body: ShareClinicalSummaryRequest, request: Request):
+    """
+    Convert clinical summary markdown to PDF and send via email
+    
+    Args:
+        request_body: Contains the markdown content of the clinical summary
+        request: FastAPI request object (used to get device_id)
+        
+    Returns:
+        JSON response indicating success or failure
+    """
+    device_id = get_device_id(request)
+    
+    # Verify patient exists
+    patient_data = database.get_patient(device_id)
+    if not patient_data:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    patient_id = patient_data.get('id')
+    patient_name = patient_data.get('name', 'Patient')
+    
+    # Get email configuration from environment variables
+    gmail_from = os.getenv('GMAIL_FROM', 'noreply@serelora.com')
+    gmail_user = os.getenv('GMAIL_USER')
+    gmail_app_password = os.getenv('GMAIL_APP_PASSWORD')
+    email_to = os.getenv('EMAIL_TO')
+    
+    if not gmail_user or not gmail_app_password:
+        raise HTTPException(
+            status_code=500,
+            detail="Email configuration is missing. GMAIL_USER and GMAIL_APP_PASSWORD must be set."
+        )
+    
+    if not email_to:
+        raise HTTPException(
+            status_code=500,
+            detail="Email recipient is missing. EMAIL_TO must be set."
+        )
+    
+    try:
+        # Post-process markdown to replace any date placeholders with actual date
+        current_date = datetime.now().strftime('%B %d, %Y')
+        processed_markdown = request_body.markdown_content
+        
+        # Replace various date placeholder patterns
+        # Replace "[Insert Date]" anywhere
+        processed_markdown = processed_markdown.replace('[Insert Date]', current_date)
+        # Replace "Date generated: [Insert Date]" or "Date generated: [date]"
+        processed_markdown = re.sub(
+            r'Date generated:\s*\[.*?\]',
+            f'Date generated: {current_date}',
+            processed_markdown,
+            flags=re.IGNORECASE
+        )
+        # Replace standalone "Date generated:" (without a date) on its own line or in a list
+        processed_markdown = re.sub(
+            r'Date generated:\s*$',
+            f'Date generated: {current_date}',
+            processed_markdown,
+            flags=re.MULTILINE | re.IGNORECASE
+        )
+        
+        # Convert markdown to HTML
+        html_content = markdown.markdown(
+            processed_markdown,
+            extensions=['extra']
+        )
+        
+        # Add basic styling for better PDF appearance (xhtml2pdf compatible)
+        styled_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{
+                    size: letter;
+                    margin: 0.75in;
+                }}
+                body {{
+                    font-family: Verdana, sans-serif;
+                    font-size: 16px;
+                    line-height: 1.3;
+                    color: #333;
+                    padding: 10px;
+                }}
+                h1, h2, h3 {{
+                    color: #000000;
+                    margin-top: 4px;
+                    margin-bottom: 4px;
+                }}
+                h1 {{ font-size: 24px; }}
+                h2 {{ font-size: 20px; }}
+                h3 {{ font-size: 18px; }}
+                p {{
+                    margin-top: 4px;
+                    margin-bottom: 4px;
+                }}
+                ul, ol {{
+                    margin-top: 2px;
+                    margin-bottom: 2px;
+                    padding-left: 25px;
+                }}
+                li {{
+                    margin-top: 0px;
+                    margin-bottom: 0px;
+                    line-height: 1.2;
+                }}
+                code {{
+                    background-color: #f4f4f4;
+                    padding: 2px 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 13px;
+                }}
+                pre {{
+                    background-color: #f4f4f4;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    margin-top: 4px;
+                    margin-bottom: 4px;
+                }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 8px 0;
+                }}
+                th, td {{
+                    border: 1px solid #ddd;
+                    padding: 6px;
+                    text-align: left;
+                }}
+                th {{
+                    background-color: #f2f2f2;
+                    font-weight: bold;
+                }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        # Convert HTML to PDF using xhtml2pdf
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(
+            BytesIO(styled_html.encode('utf-8')),
+            dest=pdf_buffer,
+            encoding='utf-8'
+        )
+        
+        if pisa_status.err:
+            raise Exception(f"PDF generation failed: {pisa_status.err}")
+        
+        pdf_bytes = pdf_buffer.getvalue()
+        
+        # Create temporary file for PDF
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            tmp_file.write(pdf_bytes)
+            tmp_file_path = tmp_file.name
+        
+        try:
+            # Setup SMTP connection
+            smtp_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+            smtp_server.login(gmail_user, gmail_app_password)
+            
+            # Create email message
+            msg = MIMEMultipart()
+            msg['From'] = f'"{patient_name}" <{gmail_from}>'
+            msg['Sender'] = gmail_user
+            msg['To'] = email_to
+            msg['Subject'] = f'Clinical Summary - {patient_name}'
+            
+            # Email body
+            body_text = f"""Clinical Summary for {patient_name}
+
+This clinical summary has been shared by the patient via the Kidney Transplant Navigation app.
+
+Please find the detailed clinical summary attached as a PDF document.
+
+---
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Patient ID: {patient_id}
+"""
+            
+            msg.attach(MIMEText(body_text, 'plain'))
+            
+            # Attach PDF
+            with open(tmp_file_path, 'rb') as pdf_file:
+                pdf_attachment = MIMEBase('application', 'pdf')
+                pdf_attachment.set_payload(pdf_file.read())
+                encoders.encode_base64(pdf_attachment)
+                pdf_attachment.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename=clinical_summary_{patient_id}_{datetime.now().strftime("%Y%m%d")}.pdf'
+                )
+                msg.attach(pdf_attachment)
+            
+            # Send email
+            smtp_server.send_message(msg)
+            smtp_server.quit()
+            
+            return JSONResponse(content={
+                "success": True,
+                "message": "Clinical summary has been sent successfully"
+            })
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+                
+    except smtplib.SMTPException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send email: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process clinical summary: {str(e)}"
+        )
