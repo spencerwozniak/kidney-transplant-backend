@@ -4,10 +4,12 @@ Export endpoints
 Exports patient data in FHIR R4 format and generates AI-powered clinical summaries.
 """
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import base64
+import json
+import asyncio
 from datetime import datetime
 
 from app.database import storage as database
@@ -793,14 +795,97 @@ def format_context_for_clinical_summary(context: Dict[str, Any]) -> str:
     return "\n\n".join(sections)
 
 
-def generate_clinical_summary(patient_id: str, device_id: str, model: str = "gpt-4o") -> str:
+async def generate_clinical_summary_stream(patient_id: str, device_id: str, model: str = "gpt-5.1"):
+    """
+    Generate a clinical summary document using OpenAI with streaming
+    
+    Args:
+        patient_id: Patient ID
+        device_id: Device ID to get patient data
+        model: OpenAI model to use (default: gpt-5.1)
+        
+    Yields:
+        Text chunks as they are generated
+    """
+    if not is_ai_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="AI features are not enabled. OPENAI_API_KEY environment variable not set."
+        )
+    
+    # Build patient context (reuse from AI service)
+    context = build_patient_context(patient_id, device_id)
+    
+    # Format context for summary generation
+    context_str = format_context_for_clinical_summary(context)
+    
+    # Build system prompt for clinical summary
+    system_prompt = """You are a medical documentation assistant helping to create a comprehensive clinical summary for a kidney transplant evaluation patient.
+
+Your task is to generate a clear, professional clinical summary document that can be shared with healthcare providers and transplant centers.
+
+Guidelines:
+- Write in a professional, clinical tone suitable for medical documentation
+- Organize information clearly with appropriate sections
+- Include all relevant clinical information from the provided context
+- Be concise but comprehensive
+- Use standard medical terminology
+- Do NOT provide medical advice, diagnoses, or treatment recommendations
+- Focus on factual information from the patient's data
+- Format the summary as a clean, readable document with clear sections
+- Include relevant details from uploaded documents when available"""
+
+    # Build user prompt
+    user_prompt = f"""Generate a comprehensive clinical summary document for this patient based on the following information:
+
+{context_str}
+
+Please create a well-structured clinical summary document that includes:
+1. Patient Demographics and Clinical Status
+2. Current Pathway Stage and Progress
+3. Medical Status and Contraindications
+4. Pre-transplant Checklist Progress
+5. Relevant Information from Uploaded Documents
+6. Referral Status
+7. Financial Assessment Status (if applicable)
+
+Format the summary as a professional medical document that can be easily shared with healthcare providers."""
+
+    try:
+        client = get_openai_client()
+        
+        # Use streaming API
+        stream = client.responses.create(
+            model=model,
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_output_tokens=2000,
+            stream=True
+        )
+        
+        # Stream chunks with proper async yielding
+        for event in stream:
+            if event.type == "response.output_text.delta":
+                yield event.delta
+                await asyncio.sleep(0)  # Yield control to event loop for true streaming
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate clinical summary: {str(e)}"
+        )
+
+
+def generate_clinical_summary(patient_id: str, device_id: str, model: str = "gpt-5.1") -> str:
     """
     Generate a clinical summary document using OpenAI
     
     Args:
         patient_id: Patient ID
         device_id: Device ID to get patient data
-        model: OpenAI model to use (default: gpt-4o)
+        model: OpenAI model to use (default: gpt-5.1)
         
     Returns:
         Generated clinical summary text
@@ -992,6 +1077,67 @@ async def export_patient_fhir_by_id(patient_id: str, request: Request):
     return JSONResponse(content=bundle, media_type="application/fhir+json")
 
 
+@router.get("/patients/clinical-summary/stream")
+async def export_clinical_summary_stream(request: Request, model: Optional[str] = None):
+    """
+    Generate and stream a comprehensive clinical summary document using AI
+    
+    This endpoint streams a professional clinical summary document that encompasses
+    all patient data including demographics, medical status, checklist progress,
+    uploaded documents (extracted text), referral status, and financial profile.
+    
+    The summary is generated using OpenAI and streamed as text chunks, allowing
+    the user to see progress in real-time rather than waiting for the full response.
+    
+    Args:
+        request: FastAPI request object (used to get device_id)
+        model: Optional OpenAI model name (defaults to gpt-5.1)
+        
+    Returns:
+        StreamingResponse with text chunks in Server-Sent Events format
+    """
+    device_id = get_device_id(request)
+    
+    # Verify patient exists
+    patient_data = database.get_patient(device_id)
+    if not patient_data:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    patient_id = patient_data.get('id')
+    
+    # Use provided model or default
+    model_name = model or get_default_model()
+    
+    async def generate():
+        try:
+            chunk_count = 0
+            
+            # Stream clinical summary chunks
+            async for chunk in generate_clinical_summary_stream(patient_id, device_id, model_name):
+                chunk_count += 1
+                # Send each text chunk as JSON
+                chunk_json = f"data: {json.dumps({'chunk': chunk})}\n\n"
+                yield chunk_json.encode('utf-8')
+            
+            # Send completion signal
+            yield f"data: {json.dumps({'done': True})}\n\n".encode('utf-8')
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            error_data = json.dumps({'error': str(e)})
+            yield f"data: {error_data}\n\n".encode('utf-8')
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
 @router.get("/patients/clinical-summary")
 async def export_clinical_summary(request: Request, model: Optional[str] = None):
     """
@@ -1001,12 +1147,12 @@ async def export_clinical_summary(request: Request, model: Optional[str] = None)
     all patient data including demographics, medical status, checklist progress,
     uploaded documents (extracted text), referral status, and financial profile.
     
-    The summary is generated using OpenAI GPT-4o and is formatted as a clean,
+    The summary is generated using OpenAI gpt-5.1 and is formatted as a clean,
     shareable document suitable for healthcare providers and transplant centers.
     
     Args:
         request: FastAPI request object (used to get device_id)
-        model: Optional OpenAI model name (defaults to gpt-4o)
+        model: Optional OpenAI model name (defaults to gpt-5.1)
         
     Returns:
         JSON response with the generated clinical summary
